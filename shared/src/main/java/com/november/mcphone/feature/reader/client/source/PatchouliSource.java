@@ -194,7 +194,7 @@ public final class PatchouliSource implements BookSource {
         Transforms.push(g);
         Transforms.translate(g, x, y);
         if (size != 16) Transforms.scale(g, size / 16f, size / 16f);
-        icon.render(g, 0, 0);
+        com.november.mcphone.platform.client.PhoneBookIcons.draw(icon, g, 0, 0);
         Transforms.pop(g);
         return true;
     }

@@ -59,9 +59,9 @@ public final class PhoneToast extends PhoneToastBase {
     private static final int COLOR_BORDER = PhoneTheme.COLOR_TOAST_BORDER;
     private static final int COLOR_NAME = PhoneTheme.FONT_COLOR_TOAST_TITLE;
     private static final int COLOR_TEXT = PhoneTheme.FONT_COLOR_TOAST;
-    private static final int COLOR_BADGE_BG = PhoneTheme.COLOR_UNREAD_BADGE;
 
     private final UUID sender;
+    private final UUID avatar;
     private final String senderName;
 
     private String text;
@@ -75,7 +75,12 @@ public final class PhoneToast extends PhoneToastBase {
     private boolean changed = true;
 
     public PhoneToast(UUID sender, String senderName, String text) {
+        this(sender, sender, senderName, text);
+    }
+    /** 合并身份与头像分开：群通知按群合并，但绘制真实发送者的头像。 */
+    public PhoneToast(UUID sender, UUID avatar, String senderName, String text) {
         this.sender = sender;
+        this.avatar = avatar;
         this.senderName = senderName;
         this.text = text;
     }
@@ -116,23 +121,20 @@ public final class PhoneToast extends PhoneToastBase {
             g.renderOutline(0, 0, WIDTH, HEIGHT, COLOR_BORDER);
         }
 
-        PlayerAvatar.draw(g, sender, PAD, (HEIGHT - AVATAR_SIZE) / 2, AVATAR_SIZE);
+        PlayerAvatar.draw(g, avatar, PAD, (HEIGHT - AVATAR_SIZE) / 2, AVATAR_SIZE);
 
         int textX = PAD + AVATAR_SIZE + PAD;
         int textW = WIDTH - textX - PAD;
 
         // 有多条时右上角留出角标的位置，名字不能压到它
-        int badgeW = count > 1 ? font.width(countLabel()) + 4 : 0;
+        int badgeW = count > 1 ? UnreadBadge.width(font, countLabel()) : 0;
         g.drawString(font, GuiUtil.truncate(font, senderName, textW - badgeW - 2),
                 textX, 7, COLOR_NAME, false);
         g.drawString(font, GuiUtil.truncate(font, text, textW), textX, 18, COLOR_TEXT, false);
 
         if (count > 1) {
             int badgeX = WIDTH - PAD - badgeW;
-            // 与会话列表的未读角标共用贴图，换肤时两处一致
-            PhoneSkin.drawOrFill(g, PhoneSkin.Element.UNREAD_BADGE,
-                    badgeX, 6, badgeW, font.lineHeight + 1, COLOR_BADGE_BG);
-            g.drawString(font, countLabel(), badgeX + 2, 7, COLOR_NAME, false);
+            UnreadBadge.draw(g, font, countLabel(), badgeX, 7);
         }
     }
 

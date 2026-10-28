@@ -171,6 +171,7 @@ public final class PhoneHud {
 
         var shown = Screens.current(mc);
         boolean isScreen = shown == phone;
+        if (!isScreen) phone.tick();
 
         // 全屏那副面孔正开着：人已经在正经操作手机了，Alt 在这儿没有意义
         if (isScreen && !phone.isHudMode()) return;
@@ -336,6 +337,23 @@ public final class PhoneHud {
         manual = Override.NONE;
         lastAuto = false;
         if (closing != null) closing.shutdown();
+    }
+
+    /** 方块键把正在使用的同一部手机交给 HUD，保留页面、草稿及滚动状态。 */
+    public static void showAsHud(PhoneScreen current) {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.screen != current || mc.player == null || mc.level == null
+                || !PhoneItem.isDevice(current.location().resolve(mc.player))) return;
+
+        if (phone != current) dismiss(mc);
+        phone = current;
+        // 先同步自动状态，避免下一 tick 把这次明确的显示请求清掉。
+        lastAuto = PhoneHudPlacement.enabled() && PhoneItem.isDevice(mc.player.getOffhandItem());
+        manual = Override.SHOW;
+        interacting = false;
+        // removed() 前先托管，退出全屏只归还鼠标，不会关掉当前页面。
+        phone.adoptByHud();
+        mc.setScreen(null);
     }
 
     /**

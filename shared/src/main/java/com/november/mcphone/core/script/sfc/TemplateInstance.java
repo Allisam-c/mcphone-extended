@@ -4,6 +4,9 @@ import com.november.mcphone.core.script.layout.Node;
 import com.november.mcphone.core.script.layout.NodeParser;
 import com.november.mcphone.core.script.layout.NodeType;
 import com.november.mcphone.core.script.layout.UiState;
+import com.november.mcphone.core.script.layout.StateRules;
+import com.november.mcphone.core.script.http.HttpRequests;
+import com.november.mcphone.core.script.server.store.LocalStore;
 import com.november.mcphone.core.script.sfc.CompiledTemplate.BoundProp;
 import com.november.mcphone.core.script.sfc.CompiledTemplate.Chain;
 import com.november.mcphone.core.script.sfc.CompiledTemplate.Child;
@@ -19,6 +22,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.function.Supplier;
 
 /**
  * 一页模板的实例化（施工方案 §9.9）。每次重排调一次 {@link #instantiate}：v-if 过滤、v-for 展开成真实的兄弟节点、
@@ -85,6 +89,22 @@ public final class TemplateInstance {
          * hit 不是这棵树产出的节点时抛 {@link IllegalArgumentException}：查不到 @click 却照写 bind，会悄悄拆开「bind 与 @click 同成败」。
          */
         public Statements.Outcome click(Node hit, UiState state, int segment) {
+            return click(hit, state, segment, null);
+        }
+
+        public Statements.Outcome click(Node hit, UiState state, int segment, Supplier<LocalStore> storage) {
+            return click(hit, state, segment, storage, null);
+        }
+
+        public Statements.Outcome click(Node hit, UiState state, int segment, Supplier<LocalStore> storage,
+                                         HttpRequests requests) {
+            try (HttpRequests batch = requests) {
+                return clickTransaction(hit, state, segment, storage, batch);
+            }
+        }
+
+        private Statements.Outcome clickTransaction(Node hit, UiState state, int segment, Supplier<LocalStore> storage,
+                                                     HttpRequests requests) {
             if (!nodes.contains(hit)) {
                 throw new IllegalArgumentException("这个节点不是这棵树产出的：点击要用同一次 instantiate 的树去查");
             }
@@ -105,33 +125,57 @@ public final class TemplateInstance {
                     trial.set(bind, segment);
                 }
             }
-            Statements.Outcome outcome = bound == null
-                    ? new Statements.Outcome(true, false, false, null, List.of())
-                    : bound.run(trial, file);
-            if (outcome.applied()) {
-                for (Map.Entry<String, Object> e : trial.values().entrySet()) state.set(e.getKey(), e.getValue());
+            try (LocalStore.Transaction transaction = new LocalStore.Transaction(storage)) {
+                Statements.Outcome outcome = bound == null
+                        ? new Statements.Outcome(true, false, false, null, List.of(), List.of())
+                        : bound.run(trial, file, transaction, requests);
+                if (outcome.applied()) {
+                    if (!transaction.commit()) {
+                        List<String> warnings = new ArrayList<>(outcome.warnings());
+                        warnings.add(file + " 本地存储保存失败，原文件和页面数据已保留，本次点击未完成");
+                        return new Statements.Outcome(false, false, false, null, List.of(), List.copyOf(warnings));
+                    }
+                    for (Map.Entry<String, Object> e : trial.values().entrySet()) state.set(e.getKey(), e.getValue());
+                    if (requests != null) requests.commit();
+                }
+                return outcome;
             }
-            return outcome;
         }
     }
 
-    /** 一次实例化的现场：节点预算、已用过的 id、点击表。 */
+    /** 一次实例化的现场：节点预算、已用过的 id、点击表、宿主上下文（点击时也要用同一份）。 */
     private static final class Pass {
         int budget = NodeParser.MAX_NODES;
         boolean truncated;
+        int textBudget = StateRules.MAX_PAGE_TEXT;
+        boolean textTruncated;
         final Set<String> ids = new HashSet<>();
         final Map<Node, Statements.Bound> clicks = new IdentityHashMap<>();
         final Set<Node> nodes = Collections.newSetFromMap(new IdentityHashMap<>());
+        final Map<String, Object> host;
+
+        private Pass(Map<String, Object> host) {
+            this.host = host;
+        }
     }
 
     /** 按当前 state 产出一棵树。不抛：超限截断、求值出错降级，原因在 {@link Tree#warnings()}。 */
     public Tree instantiate(UiState state) {
-        EvalContext c = new EvalContext(state.values(), file);
+        return instantiate(state, Map.of());
+    }
+
+    /**
+     * 同上，另外把宿主注入的只读上下文（§13.8 的 {@code backend}）交给表达式。
+     * 每次重排都要按当前握手状态传一次：换服之后同一个 App 的 {@code backend.available} 会变。
+     */
+    public Tree instantiate(UiState state, Map<String, Object> host) {
+        EvalContext c = new EvalContext(state.values(), host, file);
         c.line = compiled.root().line();
-        Pass pass = new Pass();
+        Pass pass = new Pass(host);
         Node root = node(compiled.root(), c, pass, null);
         if (pass.truncated) c.warnAlways("节点超过 " + NodeParser.MAX_NODES + " 个，多出来的没有进树");
-        return new Tree(root, c.warnings(), pass.truncated, pass.clicks, pass.nodes, file);
+        if (pass.textTruncated) c.warnAlways("页面正文超过 " + StateRules.MAX_PAGE_TEXT + " 个 UTF-16 单元，超出部分未显示");
+        return new Tree(root, c.warnings(), pass.truncated || pass.textTruncated, pass.clicks, pass.nodes, file);
     }
 
     public String file() {
@@ -158,6 +202,9 @@ public final class TemplateInstance {
             Object v = PropRules.normalize(b.getValue().spec(), b.getValue().expr().run(c), c, tag);
             if (v != null) props.put(b.getKey(), v);
         }
+        if (e.type() == NodeType.TEXT && props.get("text") instanceof String text) {
+            props.put("text", boundedText(text, pass));
+        }
         String id = e.id();
         if (id != null && !pass.ids.add(id)) {
             c.warn("id '" + id + "' 在树里出现了不止一次，后面的去掉 id");
@@ -183,7 +230,8 @@ public final class TemplateInstance {
 
         Node out = new Node(e.type(), id, e.classes(), Collections.unmodifiableMap(props), List.copyOf(kids), null, null);
         pass.nodes.add(out);
-        if (e.click() != null) pass.clicks.put(out, new Statements.Bound(e.click(), c.boundNames(), c.boundValues()));
+        if (e.click() != null) pass.clicks.put(out,
+                new Statements.Bound(e.click(), c.boundNames(), c.boundValues(), pass.host));
         return out;
     }
 
@@ -209,7 +257,7 @@ public final class TemplateInstance {
             pass.budget--;
             Object text = t.literal() != null ? t.literal() : PropRules.normalize(TEXT, t.expr().run(c), c, "text");
             if (c.exhausted()) return;
-            Node node = new Node(NodeType.TEXT, null, List.of(), Map.of("text", text), List.of(), null, null);
+            Node node = new Node(NodeType.TEXT, null, List.of(), Map.of("text", boundedText(Values.text(text), pass)), List.of(), null, null);
             pass.nodes.add(node);
             out.add(node);
         } else {
@@ -258,5 +306,14 @@ public final class TemplateInstance {
 
     private static void add(List<Node> out, Node n) {
         if (n != null) out.add(n);
+    }
+
+    private static String boundedText(String text, Pass pass) {
+        if (text.length() > pass.textBudget) {
+            pass.textTruncated = true;
+            text = pass.textBudget == 0 ? "" : Values.cut(text, pass.textBudget);
+        }
+        pass.textBudget -= text.length();
+        return text;
     }
 }

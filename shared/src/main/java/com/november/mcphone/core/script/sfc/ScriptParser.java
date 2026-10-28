@@ -1,5 +1,6 @@
 package com.november.mcphone.core.script.sfc;
 
+import com.november.mcphone.core.script.engine.ClientScript;
 import com.november.mcphone.core.script.layout.StateRules;
 import com.november.mcphone.core.script.sfc.ExprParser.Tok;
 import com.november.mcphone.core.script.sfc.SfcError.Code;
@@ -9,9 +10,9 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
- * P0 的 {@code <script>}（施工方案 §9.7）：只认一条 {@code state = { ... }}，值只收字面量。
+ * {@code <script>} 的初值部分（施工方案 §9.7）：只认一条 {@code state = { ... }}，值只收字面量。
  *
- * <p>注释、末尾的分号、键上的引号与尾逗号照 JS 的写法收下：P1 换成真引擎时作者的文件一个字都不用改。
+ * <p>{@link ClientScript} 单独提取函数声明后仍走这套初值校验，不在装包期执行作者代码。
  */
 final class ScriptParser {
 
@@ -49,13 +50,17 @@ final class ScriptParser {
                 throw SfcError.at(Code.E_SCRIPT_STATE, k.line(), k.col(), key, "键名要" + StateRules.KEY_RULE);
             }
             if (out.containsKey(key)) throw SfcError.at(Code.E_SCRIPT_STATE, k.line(), k.col(), key, "写了两次");
+            if (ExprParser.Host.is(key)) {
+                // 宿主注入的只读上下文（§13.8）不许被 state 顶掉：运行时它是宿主先查，写进来只会静默失效
+                throw SfcError.at(Code.E_SCRIPT_STATE, k.line(), k.col(), key, "是宿主保留的名字，不能写进 state");
+            }
             if (out.size() == StateRules.MAX_KEYS) {
                 throw SfcError.at(Code.E_SCRIPT_STATE, k.line(), k.col(), key, "state 最多 " + StateRules.MAX_KEYS + " 个键");
             }
             Tok colon = p.next();
             if (!ExprParser.is(colon, ":")) throw subset(colon);
             Object value = p.literal(key, 1);
-            String why = StateRules.check(value);
+            String why = StateRules.check(value, StateRules.MAX_PAGE_STRING);
             if (why != null) throw SfcError.at(Code.E_SCRIPT_STATE, k.line(), k.col(), key, why);
             out.put(key, StateRules.freeze(value));
             if (!p.at(",")) break;
@@ -65,6 +70,9 @@ final class ScriptParser {
         if (!ExprParser.is(close, "}")) throw subset(close);
         if (p.at(";")) p.next();
         if (p.peek().kind() != 'e') throw subset(p.peek());
+        if (StateRules.textUnits(out) > StateRules.MAX_PAGE_TEXT) {
+            throw SfcError.at(Code.E_SCRIPT_STATE, t.line(), t.col(), "state", "文本总量最多 " + StateRules.MAX_PAGE_TEXT + " 个 UTF-16 单元");
+        }
         return Collections.unmodifiableMap(out);
     }
 

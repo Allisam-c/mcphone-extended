@@ -8,9 +8,7 @@ import com.november.mcphone.feature.chat.net.RequestChatImagePacket;
 import net.minecraft.Util;
 import net.minecraft.client.Minecraft;
 
-import java.util.ArrayList;
 import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -31,7 +29,7 @@ import java.util.UUID;
  *
  * 要了没回怎么办
  *
- * 隔 {@link #RETRY_AFTER_MS} 再要一次。包可能正好撞上限流被丢掉，而客户端无从知道——
+ * 隔 {@link ChatImageRequests#RETRY_AFTER_MS} 再要一次。包可能正好撞上限流被丢掉，而客户端无从知道——
  * 没有重试的话那张图就永远停在"加载中"。
  *
  * 线程
@@ -65,6 +63,8 @@ public final class ChatImageCache {
      * 余量是留给上下翻的。
      */
     private static final long MAX_CACHE_BYTES = 24L * 1024 * 1024;
+    /** LOADING / GONE / BROKEN 可能不占像素字节，仍须限制长期跨会话积累的元数据。 */
+    static final int MAX_ENTRIES = 256;
 
     /**
      * 无论多大都至少留这么多条。
@@ -73,12 +73,6 @@ public final class ChatImageCache {
      * 它们会在同一帧里互相把对方挤出去，然后每一帧都重新去要一遍。
      */
     private static final int MIN_ENTRIES = 4;
-
-    /** 要过之后多久没回音就再要一次 */
-    private static final long RETRY_AFTER_MS = 6000L;
-
-    /** 两次请求包之间至少隔这么久。服务端限流是 500 毫秒，这里留一点余量 */
-    private static final long REQUEST_INTERVAL_MS = 600L;
 
     private static final class Entry {
         Status status = Status.LOADING;
@@ -100,7 +94,7 @@ public final class ChatImageCache {
          * 原始的 PNG 字节，供「保存到相册」用。
          *
          * 留着而不是要用时再问服务端要一遍：字节已经付过一次流量了，而且贴图是解码放大过的
-         * 像素，从它反推不回原文件。至多 128 KB 一张，随条目一起被 LRU 挤掉。
+         * 像素，从它反推不回原文件。大小受 ChatImage.maxBytes() 约束，随条目一起被 LRU 挤掉。
          */
         byte[] png;
 
@@ -114,7 +108,7 @@ public final class ChatImageCache {
     /** ENTRIES 里所有条目的 bytes 之和，逐出的依据 */
     private static long usedBytes;
 
-    private static long lastRequestMs;
+    private static final ChatImageRequests REQUESTS = new ChatImageRequests();
 
     /**
      * 世代，每次 {@link #clear()} 递增。
@@ -124,6 +118,11 @@ public final class ChatImageCache {
      */
     private static int generation;
 
+    /** 会话每帧开始时登记对端；缓存中旧会话的 LOADING 条目不能进入本帧请求。 */
+    public static void beginFrame(UUID peer) {
+        REQUESTS.beginFrame(peer);
+    }
+
     /**
      * 要这张图的贴图，顺带告诉缓存"这一帧它是可见的"。
      *
@@ -132,10 +131,12 @@ public final class ChatImageCache {
      */
     public static ImageCodec.Texture get(UUID image) {
         if (image == null) return null;
+        REQUESTS.visible(image);
 
         Entry entry = ENTRIES.get(image);   // 命中即刷新 LRU 位置
         if (entry == null) {
             ENTRIES.put(image, new Entry());
+            trim();
             return null;
         }
         return entry.status == Status.READY ? entry.texture : null;
@@ -152,6 +153,7 @@ public final class ChatImageCache {
         Entry entry = ENTRIES.computeIfAbsent(image, k -> new Entry());
         entry.frames = Math.max(1, frames);
         entry.frameMs = Math.max(0, frameMs);
+        trim();
     }
 
     /** 这张图有几帧。没登记过按 1 算（静态图） */
@@ -189,25 +191,21 @@ public final class ChatImageCache {
      * 攒批与限流的理由见类注释。没有要的东西时一个包都不发。
      */
     public static void flushRequests(UUID peer) {
+        flushRequests(peer, false);
+    }
+    public static void flushRequests(UUID peer, boolean group) {
         if (peer == null || Minecraft.getInstance().getConnection() == null) return;
 
         long now = System.currentTimeMillis();
-        if (now - lastRequestMs < REQUEST_INTERVAL_MS) return;
-
-        List<UUID> wanted = new ArrayList<>();
-        for (Map.Entry<UUID, Entry> e : ENTRIES.entrySet()) {
-            Entry entry = e.getValue();
-            if (entry.status != Status.LOADING) continue;
-            if (entry.requestedAt != 0 && now - entry.requestedAt < RETRY_AFTER_MS) continue;
-
-            wanted.add(e.getKey());
-            if (wanted.size() >= RequestChatImagePacket.MAX_IDS) break;
-        }
+        var wanted = REQUESTS.batch(peer, now, RequestChatImagePacket.MAX_IDS, id -> {
+            Entry entry = ENTRIES.get(id);
+            return entry == null || entry.status != Status.LOADING ? null : entry.requestedAt;
+        });
         if (wanted.isEmpty()) return;
 
         for (UUID id : wanted) ENTRIES.get(id).requestedAt = now;
-        lastRequestMs = now;
-        MCphoneNetwork.sendToServer(new RequestChatImagePacket(peer, wanted));
+        if (group) GroupTransport.send(new com.november.mcphone.feature.chat.group.net.GroupCommand.Images(UUID.randomUUID(), peer, wanted));
+        else MCphoneNetwork.sendToServer(new RequestChatImagePacket(peer, wanted));
     }
 
     /**
@@ -226,16 +224,19 @@ public final class ChatImageCache {
 
         if (data.length == 0) {
             entry.status = Status.GONE;
+            trim();
             return;
         }
         setPng(entry, data);
+        trim();
 
         final int gen = generation;
+        final Entry owner = entry;
         Util.backgroundExecutor().execute(() -> {
             // 上限按雪碧图算而不是按一帧算：动图的字节是整张雪碧图，
             // 按 MAX_SIDE 收会把它缩掉一半，每一帧都跟着糊
             NativeImage decoded = ImageCodec.decodeAndScale(data, ChatImage.SHEET_MAX_SIDE);
-            Minecraft.getInstance().execute(() -> install(image, gen, decoded));
+            Minecraft.getInstance().execute(() -> install(image, gen, owner, decoded));
         });
     }
 
@@ -249,12 +250,14 @@ public final class ChatImageCache {
     public static void seed(UUID image, byte[] png) {
         Entry entry = ENTRIES.computeIfAbsent(image, k -> new Entry());
         setPng(entry, png);
+        trim();
         if (entry.status == Status.READY) return;
 
         final int gen = generation;
+        final Entry owner = entry;
         Util.backgroundExecutor().execute(() -> {
             NativeImage decoded = ImageCodec.decodeAndScale(png, ChatImage.SHEET_MAX_SIDE);
-            Minecraft.getInstance().execute(() -> install(image, gen, decoded));
+            Minecraft.getInstance().execute(() -> install(image, gen, owner, decoded));
         });
     }
 
@@ -277,17 +280,12 @@ public final class ChatImageCache {
     }
 
     /** 解码完成，回到渲染线程上传贴图 */
-    private static void install(UUID image, int gen, NativeImage decoded) {
-        if (gen != generation) {
-            // 期间清过场（退出会话、离开世界），这张白解了
+    private static void install(UUID image, int gen, Entry owner, NativeImage decoded) {
+        Entry entry = ENTRIES.get(image);
+        if (gen != generation || entry != owner) {
+            // 清场、逐出或同 ID 重建条目后，旧任务都不能接管新条目。
             if (decoded != null) decoded.close();
             return;
-        }
-
-        Entry entry = ENTRIES.get(image);
-        if (entry == null) {
-            entry = new Entry();
-            ENTRIES.put(image, entry);
         }
 
         if (decoded == null) {
@@ -312,12 +310,11 @@ public final class ChatImageCache {
     /**
      * 超出字节上限就从最久没显示的那头逐出，直到装得下。
      *
-     * 只在装好一张贴图之后调：那是唯一一次"占用变大"的时刻。空条目（还在路上的）
-     * 一个字节都不占，不必为它们做这件事。
+     * 字节容量覆盖 PNG 和贴图；条数容量同时覆盖不占像素的加载中、过期和损坏条目。
      */
     private static void trim() {
         var it = ENTRIES.entrySet().iterator();
-        while (usedBytes > MAX_CACHE_BYTES && ENTRIES.size() > MIN_ENTRIES && it.hasNext()) {
+        while ((ENTRIES.size() > MAX_ENTRIES || usedBytes > MAX_CACHE_BYTES && ENTRIES.size() > MIN_ENTRIES) && it.hasNext()) {
             Entry eldest = it.next().getValue();
             ImageCodec.release(eldest.texture);
             usedBytes -= eldest.bytes;
@@ -335,7 +332,7 @@ public final class ChatImageCache {
         for (Entry entry : ENTRIES.values()) ImageCodec.release(entry.texture);
         ENTRIES.clear();
         usedBytes = 0L;
-        lastRequestMs = 0L;
+        REQUESTS.clear();
         generation++;
     }
 }

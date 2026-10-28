@@ -122,83 +122,9 @@ jobs:
           sed -i -E "s/^mod_version=.*/mod_version=${NEW}/" gradle.properties
           grep -E '^mod_version=' gradle.properties
 
-      # ---------------- 构建与校验 ----------------
-      #
-      # 遍历 versions/targets.json 里所有 buildable 的目标逐个构建，产物全进 dist/。
-      # 【一次发版就是所有目标各出一个 jar】—— 这正是这个仓库不按版本分分支的理由：
-      # 分支一多，老版本永远慢半拍，而"慢了"这件事要等有人去看才知道。
-      - name: Setup JDKs
-        uses: actions/setup-java@v6
-        with:
-          distribution: 'temurin'
-          java-version: |
-            17
-            21
-
-      - name: 逐个目标构建
-        id: buildall
-        env:
-          NEW: ${{ steps.ver.outputs.new }}
-        run: |
-          set -euo pipefail
-          mkdir -p dist
-
-          TARGETS=$(jq -r 'to_entries[] | select((.value | type) == "object" and .value.buildable == true) | .key' versions/targets.json)
-          if [ -z "$TARGETS" ]; then
-            echo "::error::versions/targets.json 里一个 buildable 的目标都没有，没东西可发。"
-            exit 1
-          fi
-
-          for T in $TARGETS; do
-            PROJ=$(jq -r --arg t "$T" '.[$t].project' versions/targets.json)
-            JAVA=$(jq -r --arg t "$T" '.[$t].java'    versions/targets.json)
-            eval "TARGET_JAVA_HOME=\${JAVA_HOME_${JAVA}_X64:-}"
-            if [ -z "$TARGET_JAVA_HOME" ]; then
-              echo "::error::目标 $T 要 Java $JAVA，这台机器上没装。把它加进上面的 java-version。"
-              exit 1
-            fi
-
-            echo "::group::$T  （$PROJ，Java $JAVA）"
-            ( cd "$PROJ" && chmod +x ./gradlew && JAVA_HOME="$TARGET_JAVA_HOME" ./gradlew build )
-
-            # 声称支持某个加载器版本区间的下限，就得证明代码没用上更新的 API，否则
-            # 低版本玩家会在运行时撞上 NoSuchMethodError 而不是一句加载失败提示。
-            # 只有声明了区间下限的目标才做这一步 —— 别的加载器没有这个属性。
-            MIN_NEO=$(grep -E '^neo_version_range=' "$PROJ/gradle.properties" 2>/dev/null \
-              | sed -E 's/^neo_version_range=\[?([0-9]+\.[0-9]+\.[0-9]+).*/\1/' || true)
-            if [ -n "$MIN_NEO" ]; then
-              echo "  下限重编：NeoForge $MIN_NEO"
-              ( cd "$PROJ" && JAVA_HOME="$TARGET_JAVA_HOME" ./gradlew compileJava -Pneo_version="$MIN_NEO" )
-            fi
-
-            # 【按确切文件名取，不要 find | head -1】。挑错就是把一个旧版本挂上
-            # Release，玩家会真的下载。mod_version 是这次构建的唯一真值。
-            JAR="$PROJ/build/libs/mcphone-${NEW}.jar"
-            if [ ! -f "$JAR" ]; then
-              echo "::error::没找到 $JAR。$PROJ/build/libs 下现有："
-              ls -la "$PROJ/build/libs" || true
-              exit 1
-            fi
-            # 各目标的 jar 在自己工程里同名，收进 dist 必须带目标名，
-            # 否则后一个静默覆盖前一个
-            cp "$JAR" "dist/mcphone-${NEW}-${T}.jar"
-            echo "::endgroup::"
-          done
-
-          echo "── 产物 ──"
-          ls -lh dist/
-
-          # 发到 Modrinth / CurseForge 的那两步是 YAML 的 with:，跑不了 shell，
-          # 而每个目标的 loaders 与 game-versions 都不一样。所以把矩阵在这儿算好，
-          # 交给下面那个 publish job 按目标各发各的。
-          MATRIX=$(jq -c '[to_entries[] | select((.value | type) == "object" and .value.buildable == true)
-                           | {target: .key, loader: (.value.loader | ascii_downcase),
-                              minecraft: .value.minecraft, java: .value.java}]' versions/targets.json)
-          echo "matrix=$MATRIX" >> "$GITHUB_OUTPUT"
-          echo "矩阵：$MATRIX"
-
       # ---------------- 发版说明 ----------------
       #
+      # 必须在构建前归档：包内日志按文件名绑定版本，不能把 next 打进正式包。
       # 【一个小版本一份说明，不是一次发布一份】
       #
       # 文件名按【基准号】走：1.10.2-beta.1、1.10.2-beta.2、1.10.2 这三次发布共用
@@ -242,7 +168,95 @@ jobs:
             echo "file=" >> "$GITHUB_OUTPUT"
             exit 0
           fi
+          sed -i "1s/^# 下一版本$/# MCphone v${BASE}/" "$TARGET"
           echo "file=$TARGET" >> "$GITHUB_OUTPUT"
+
+      # ---------------- 构建与校验 ----------------
+      #
+      # 遍历 versions/targets.json 里所有 buildable 的目标逐个构建，产物全进 dist/。
+      # 【一次发版就是所有目标各出一个 jar】—— 这正是这个仓库不按版本分分支的理由：
+      # 分支一多，老版本永远慢半拍，而"慢了"这件事要等有人去看才知道。
+      - name: Setup JDKs
+        uses: actions/setup-java@v6
+        with:
+          distribution: 'temurin'
+          java-version: |
+            17
+            21
+            25
+
+      - name: 逐个目标构建
+        id: buildall
+        env:
+          NEW: ${{ steps.ver.outputs.new }}
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+
+          TARGETS=$(jq -r 'to_entries[] | select((.value | type) == "object" and .value.buildable == true) | .key' versions/targets.json)
+          if [ -z "$TARGETS" ]; then
+            echo "::error::versions/targets.json 里一个 buildable 的目标都没有，没东西可发。"
+            exit 1
+          fi
+
+          for T in $TARGETS; do
+            PROJ=$(jq -r --arg t "$T" '.[$t].project' versions/targets.json)
+            JAVA=$(jq -r --arg t "$T" '.[$t].java'    versions/targets.json)
+            eval "TARGET_JAVA_HOME=\${JAVA_HOME_${JAVA}_X64:-}"
+            if [ -z "$TARGET_JAVA_HOME" ]; then
+              echo "::error::目标 $T 要 Java $JAVA，这台机器上没装。把它加进上面的 java-version。"
+              exit 1
+            fi
+
+            echo "::group::$T  （$PROJ，Java $JAVA）"
+            ( cd "$PROJ" && chmod +x ./gradlew && JAVA_HOME="$TARGET_JAVA_HOME" ./gradlew build )
+
+            # 声称支持某个加载器版本区间的下限，就得证明代码没用上更新的 API，否则
+            # 低版本玩家会在运行时撞上 NoSuchMethodError 而不是一句加载失败提示。
+            # 只有声明了区间下限的目标才做这一步 —— 别的加载器没有这个属性。
+            MIN_NEO=$(grep -E '^neo_version_range=' "$PROJ/gradle.properties" 2>/dev/null \
+              | sed -E 's/^neo_version_range=\[?([0-9]+(\.[0-9]+){2,3}).*/\1/' || true)
+            if [ -n "$MIN_NEO" ]; then
+              echo "  下限重编：NeoForge $MIN_NEO"
+              ( cd "$PROJ" && JAVA_HOME="$TARGET_JAVA_HOME" ./gradlew compileJava -Pneo_version="$MIN_NEO" )
+            fi
+
+            # 【按确切文件名取，不要 find | head -1】。挑错就是把一个旧版本挂上
+            # Release，玩家会真的下载。mod_version 是这次构建的唯一真值。
+            JAR="$PROJ/build/libs/mcphone-${NEW}.jar"
+            if [ ! -f "$JAR" ]; then
+              echo "::error::没找到 $JAR。$PROJ/build/libs 下现有："
+              ls -la "$PROJ/build/libs" || true
+              exit 1
+            fi
+            # 各目标的 jar 在自己工程里同名，收进 dist 必须带目标名，
+            # 否则后一个静默覆盖前一个
+            cp "$JAR" "dist/mcphone-${NEW}-${T}.jar"
+            # 检查实际待发布的包，避免源说明已归档但包内仍只有 next。
+            python3 - "$JAR" "$NEW" <<'PY'
+          import json, sys, zipfile
+          expected = sys.argv[2].split('-', 1)[0]
+          with zipfile.ZipFile(sys.argv[1]) as jar:
+              entries = json.loads(jar.read('assets/mcphone/changelog.json'))
+          current = [entry for entry in entries if entry.get('version') == expected]
+          if len(current) != 1 or set(current[0].get('languages', {})) != {'zh_cn', 'en_us'}:
+              sys.exit('正式包缺少当前版本的双语更新日志：' + expected)
+          print('包内更新日志版本确认：' + expected)
+          PY
+            echo "::endgroup::"
+          done
+
+          echo "── 产物 ──"
+          ls -lh dist/
+
+          # 发到 Modrinth / CurseForge 的那两步是 YAML 的 with:，跑不了 shell，
+          # 而每个目标的 loaders 与 game-versions 都不一样。所以把矩阵在这儿算好，
+          # 交给下面那个 publish job 按目标各发各的。
+          MATRIX=$(jq -c '[to_entries[] | select((.value | type) == "object" and .value.buildable == true)
+                           | {target: .key, loader: (.value.loader | ascii_downcase),
+                              minecraft: .value.minecraft, java: .value.java}]' versions/targets.json)
+          echo "matrix=$MATRIX" >> "$GITHUB_OUTPUT"
+          echo "矩阵：$MATRIX"
 
       # ---------------- 提交、打 tag、推送 ----------------
       #
@@ -347,6 +361,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.release.outputs.tag }}
 
       - name: 取回产物
         uses: actions/download-artifact@v7

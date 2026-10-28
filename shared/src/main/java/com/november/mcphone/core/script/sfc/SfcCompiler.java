@@ -1,5 +1,6 @@
 package com.november.mcphone.core.script.sfc;
 
+import com.november.mcphone.core.script.engine.ClientScript;
 import com.november.mcphone.core.script.layout.MssError;
 import com.november.mcphone.core.script.layout.MssParser;
 import com.november.mcphone.core.script.layout.Stylesheet;
@@ -23,7 +24,7 @@ import java.util.regex.Pattern;
  */
 public final class SfcCompiler {
 
-    /** 编译产物。页面打开时用 {@code UiState.of(template.initialState())} 建状态，用 {@link TemplateInstance} 出树。 */
+    /** 编译产物。页面打开时用 {@code UiState.page(template.initialState())} 建状态，用 {@link TemplateInstance} 出树。 */
     public record App(Manifest manifest, Stylesheet stylesheet, CompiledTemplate template) {
     }
 
@@ -73,16 +74,19 @@ public final class SfcCompiler {
 
     private static CompiledTemplate template(Map<String, Block> blocks) {
         Block scriptBlock = blocks.get("script");
-        Map<String, Object> state;
+        ClientScript script;
         try {
-            state = scriptBlock == null ? Map.of() : ScriptParser.parse(scriptBlock.content());
+            script = ClientScript.compile(scriptBlock == null ? "" : scriptBlock.content(),
+                    scriptBlock == null ? 0 : scriptBlock.startLine() - 1, ScriptParser::parse);
+        } catch (ClientScript.Syntax e) {
+            throw SfcError.at(Code.E_SCRIPT_FUNCTION, e.line(), 0, e.getMessage()).shift(scriptBlock.startLine() - 1);
         } catch (SfcError e) {
             throw e.shift(scriptBlock.startLine() - 1);
         }
 
         Block templateBlock = blocks.get("template");
         try {
-            return TemplateCompiler.compile(templateBlock.content(), state, templateBlock.startLine() - 1);
+            return TemplateCompiler.compile(templateBlock.content(), script.initialState(), templateBlock.startLine() - 1, script);
         } catch (SfcError e) {
             throw e.shift(templateBlock.startLine() - 1);
         }
@@ -118,7 +122,7 @@ public final class SfcCompiler {
         List<Object> args = e.args();
         String field = switch (e.code()) {
             case E_PKG_BAD_FORMAT -> "format";
-            case E_PKG_BAD_ID, E_PKG_RESERVED_NAMESPACE -> "id";
+            case E_PKG_BAD_ID, E_PKG_ID_TOO_LONG, E_PKG_RESERVED_NAMESPACE -> "id";
             case E_PKG_BAD_VERSION -> "version";
             case E_PKG_BAD_ICON -> "icon";
             case E_PKG_BAD_TYPE, E_PKG_TEXT_TOO_LONG, E_PKG_TEXT_CONTROL_CHAR, E_PKG_MANIFEST_DUP_KEY ->

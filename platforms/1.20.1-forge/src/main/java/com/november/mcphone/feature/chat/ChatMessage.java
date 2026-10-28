@@ -13,20 +13,30 @@ import java.util.function.Function;
  * 一条聊天消息。sender 存 UUID 而不是名字（玩家可以改名）；time 是 currentTimeMillis，毫秒；
  * 正文是什么由 {@link MessageBody} 说了算——文本、图片，日后还可能有别的。
  */
-public record ChatMessage(UUID sender, long time, MessageBody body) {
+public record ChatMessage(UUID id, UUID sender, long time, MessageBody body) {
+    /** 保留三参数入口；新消息获得独立随机 ID，旧存档缺 ID 由 ChatData 迁移。 */
+    public ChatMessage(UUID sender, long time, MessageBody body) { this(UUID.randomUUID(), sender, time, body); }
+    public ChatMessage {
+        java.util.Objects.requireNonNull(id);
+        java.util.Objects.requireNonNull(sender);
+        java.util.Objects.requireNonNull(body);
+    }
+
 
     /** 1.8.19 及更早的存档格式：{sender, text, time}，正文只能是文本 */
     private static final Codec<ChatMessage> LEGACY_CODEC = RecordCodecBuilder.create(instance ->
             instance.group(
+                    UUIDUtil.CODEC.optionalFieldOf("id", ChatMessageIdentity.MISSING_ID).forGetter(ChatMessage::id),
                     UUIDUtil.CODEC.fieldOf("sender").forGetter(ChatMessage::sender),
                     Codec.STRING.fieldOf("text").forGetter(ChatMessage::legacyText),
                     Codec.LONG.fieldOf("time").forGetter(ChatMessage::time)
-            ).apply(instance, (sender, text, time) -> new ChatMessage(sender, time, new TextBody(text)))
+            ).apply(instance, (id, sender, text, time) -> new ChatMessage(id, sender, time, new TextBody(text)))
     );
 
     /** 现行格式：正文单独一层，里面第一个字段是 kind */
     private static final Codec<ChatMessage> MODERN_CODEC = RecordCodecBuilder.create(instance ->
             instance.group(
+                    UUIDUtil.CODEC.optionalFieldOf("id", ChatMessageIdentity.MISSING_ID).forGetter(ChatMessage::id),
                     UUIDUtil.CODEC.fieldOf("sender").forGetter(ChatMessage::sender),
                     Codec.LONG.fieldOf("time").forGetter(ChatMessage::time),
                     MessageBody.CODEC.fieldOf("body").forGetter(ChatMessage::body)
@@ -34,7 +44,7 @@ public record ChatMessage(UUID sender, long time, MessageBody body) {
     );
 
     /**
-     * 两种格式都读得懂；写的时候，【文本消息仍按老格式写】。
+     * 两种格式都读得懂；写的时候，【不含引用的文本消息仍按老格式写】。
      *
      * 读：先试新格式（认 body 字段），不成再试老格式（认 text 字段），两者字段不重叠，
      * 不会互相误判。
@@ -47,12 +57,13 @@ public record ChatMessage(UUID sender, long time, MessageBody body) {
     public static final Codec<ChatMessage> CODEC =
             Codec.either(MODERN_CODEC, LEGACY_CODEC).xmap(
                     either -> either.map(Function.identity(), Function.identity()),
-                    message -> message.body() instanceof TextBody
+                    message -> message.body() instanceof TextBody t && t.quote().isEmpty()
                             ? Either.right(message)
                             : Either.left(message)
             );
 
     public static void encode(ChatMessage msg, FriendlyByteBuf buf) {
+        buf.writeUUID(msg.id());
         buf.writeUUID(msg.sender());
         buf.writeVarLong(msg.time());
         MessageBody.encode(msg.body(), buf);
@@ -60,6 +71,7 @@ public record ChatMessage(UUID sender, long time, MessageBody body) {
 
     public static ChatMessage decode(FriendlyByteBuf buf) {
         return new ChatMessage(
+                buf.readUUID(),
                 buf.readUUID(),
                 buf.readVarLong(),
                 MessageBody.decode(buf));
