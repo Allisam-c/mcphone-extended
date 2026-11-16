@@ -13,6 +13,11 @@
 - 脚本 App 支持页面导航传参：`nav('detail', { id: 1 })` 可将少量字符串、整数、布尔值带给目标页，通过只读 `ctx.params` 读取；参数变化重新初始化，返回恢复原页状态与滚动位置。提供多页便签演示。
 - 脚本 App 增加 `textarea` 多行文本输入组件，支持换行、自动折行、键盘与鼠标选区、复制粘贴和内部滚动；与单行输入共用焦点管理，遵守页面文本预算。提供可保存并在重开后恢复的本地便签示例。
 
+### 修复
+
+- 鼠标移到更新公告的关闭按钮上时，按钮底色、边框和文字会高亮。
+- 在 HUD 中点击方块键切回全屏时会保留当前页面。关闭全屏后手机会收起，按 G 可再次唤出 HUD。
+
 ## English
 
 ### Added
@@ -25,3 +30,8 @@
 - Script apps receive a request ID from `ctx.http.request` and can cancel one request with `ctx.http.cancel(id)`, suppressing undelivered callbacks and freeing its local pending slot. Cancellation commits with page state and local storage; a failed transaction leaves the original request active. Added a cancel button to the HTTP example.
 - Script apps can pass small primitive parameters with `nav('detail', { id: 1 })` and read them through readonly `ctx.params`. Changed parameters create a fresh page state; going back restores the original state and scroll positions. Added a multipage note example.
 - Script apps can use a `textarea` component for multiline editing, wrapping, keyboard and mouse selection, clipboard operations and internal scrolling. It shares focus handling with single-line inputs and respects page text budgets. Added a local note example with explicit saving and restore on reopen.
+
+### Fixed
+
+- The update announcement’s Close button highlights its background, border, and label on hover.
+- Switching from HUD to fullscreen with the square button preserves the current page. Closing fullscreen dismisses the HUD, and G can show it again.

@@ -16,6 +16,8 @@ import java.util.List;
 /** 弹窗和历史页共用正文；标题、关闭按钮固定，只有正文滚动。 */
 public final class ChangelogPage {
     private List<Changelog.Release> releases = List.of();
+    private static final int CLOSE_INSET = 3;
+
     private int scroll, maxScroll;
     private int left, top, width, bottom, textTop, textBottom;
     private boolean modal;
@@ -38,7 +40,7 @@ public final class ChangelogPage {
         links.clear();
     }
     public void render(GuiGraphics g, int x, int y, int w, int h, int statusH, int navH,
-                       Font font, boolean popup) {
+                       Font font, boolean popup, double mouseX, double mouseY) {
         modal = popup;
         left = x + (popup ? 6 : 4);
         top = y + statusH + (popup ? 8 : 4);
@@ -80,11 +82,33 @@ public final class ChangelogPage {
             g.fill(left + width - 3, thumbY, left + width - 2, thumbY + thumb, FontPalette.subtle());
         }
         if (popup) {
-            g.fill(left + 3, textBottom + 3, left + width - 3, bottom - 3, PhoneTheme.COLOR_ROW_HOVER);
-            String close = Component.translatable("mcphone.changelog.close").getString();
-            g.drawString(font, close, left + (width - font.width(close)) / 2, textBottom + 5, FontPalette.body(), false);
+            drawCloseButton(g, font, mouseX, mouseY);
         }
     }
+    private void drawCloseButton(GuiGraphics g, Font font, double mouseX, double mouseY) {
+        int x = left + CLOSE_INSET;
+        int y = textBottom + CLOSE_INSET;
+        int w = width - CLOSE_INSET * 2;
+        int h = bottom - textBottom - CLOSE_INSET * 2;
+        boolean hovered = hitsCloseButton(mouseX, mouseY);
+        boolean darkText = FontPalette.current().darkText();
+        int background = darkText
+                ? (hovered ? 0x30000000 : 0x14000000)
+                : (hovered ? 0x55FFFFFF : PhoneTheme.COLOR_DIVIDER_FAINT);
+        g.fill(x, y, x + w, y + h, background);
+        if (hovered) g.renderOutline(x, y, w, h, darkText ? 0x55000000 : 0x66FFFFFF);
+
+        String close = Component.translatable("mcphone.changelog.close").getString();
+        g.drawString(font, close, x + (w - font.width(close)) / 2, y + (h - font.lineHeight) / 2,
+                hovered ? FontPalette.title() : FontPalette.body(), false);
+    }
+
+    private boolean hitsCloseButton(double mouseX, double mouseY) {
+        // fill 的右、下坐标不属于按钮，悬停与点击都沿用这个范围。
+        return modal && mouseX >= left + CLOSE_INSET && mouseX < left + width - CLOSE_INSET
+                && mouseY >= textBottom + CLOSE_INSET && mouseY < bottom - CLOSE_INSET;
+    }
+
     /** 正文只在打开、宽度、语言、字体或配色变化时重排，滚动不重新解析历史。 */
     private void layout(Font font, int textWidth, String language) {
         if (layoutFont == font && layoutWidth == textWidth && language.equals(layoutLanguage)
@@ -120,7 +144,7 @@ public final class ChangelogPage {
     /** 返回是否点中关闭按钮；其他点击全部由手机的模态层吞掉。 */
     public boolean mouseClicked(double mx, double my, int button) {
         if (button != 0) return false;
-        if (modal && mx >= left + 3 && mx < left + width - 3 && my >= textBottom + 3 && my < bottom - 3) return true;
+        if (hitsCloseButton(mx, my)) return true;
         for (var link : links) if (link.contains(mx, my)) {
             SystemFiles.openUri(link.url());
             break;
