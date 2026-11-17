@@ -2,6 +2,9 @@ package com.november.mcphone.platform.client;
 
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.renderer.RenderPipelines;
+import net.minecraft.resources.Identifier;
+import net.minecraft.world.item.ItemStack;
 
 /**
  * 直接走顶点缓冲的那点绘制，以及 {@link Screen} 上换过签名的那几个方法 ——
@@ -51,16 +54,16 @@ public final class Draw {
     private Draw() {}
 
     /**
-     * 画屏幕背景。
+     * 背景已经由 {@code Screen.extractRenderStateWithTooltipAndSubtitles} 在内容之前提取。
      *
-     * <p>这一支上它叫 {@code Screen#extractBackground}（{@code Screen.java:393}），收的还是
-     * 【画布 + 鼠标 + partialTick】那四个：1.21.1 那个
-     * {@code renderBackground(GuiGraphics, int, int, float)} 在这支换了名字，方法体还是
-     * 那三件事 —— 游戏内 UI 走透明底、没有世界就画全景、其余画模糊与暗底。
+     * <p>26.3 的原版入口会先调用 {@link Screen#extractBackground}，再调用
+     * {@code extractRenderState}。共用界面的 {@code render} 对应后一步；若这里再转调
+     * {@code extractBackground}，就会在同一帧第二次请求模糊，直接触发
+     * {@code Can only blur once per frame}。
      */
     public static void screenBackground(Screen screen, GuiGraphicsExtractor g,
                                         int mouseX, int mouseY, float partialTick) {
-        screen.extractBackground(g, mouseX, mouseY, partialTick);
+        // 由 PhoneScreenBase.extractBackground / PhoneContainerScreenBase.extractBackground 处理。
     }
 
     /**
@@ -77,5 +80,25 @@ public final class Draw {
      */
     public static boolean scissorLeaked(GuiGraphicsExtractor g) {
         return !g.containsPointInScissor(0, 0);
+    }
+
+    /**
+     * 26.3 的贴图颜色是每次 blit 的参数，不再有全局 {@code setColor}。
+     *
+     * <p>共用界面仍然把“先染色、画完还原”写成一段，这个门面负责把颜色交给
+     * {@link RenderPipelines#GUI_TEXTURED} 的那次提交；{@code color == -1} 表示不染色。
+     * 参数顺序与旧目标的 {@code GuiGraphics.blit} 保持一致，共用层不需要知道管线。
+     */
+    public static void blitTexture(GuiGraphicsExtractor g, Identifier tex,
+                                   int x, int y, int w, int h,
+                                   float u, float v, int srcW, int srcH,
+                                   int texW, int texH, int color) {
+        g.blit(RenderPipelines.GUI_TEXTURED, tex, x, y, u, v, w, h,
+                srcW, srcH, texW, texH, color);
+    }
+
+    /** 26.3 把物品图标入口改名为 {@code item}，与旧的 {@code renderItem} 只差这个名字。 */
+    public static void renderItem(GuiGraphicsExtractor g, ItemStack stack, int x, int y) {
+        g.item(stack, x, y);
     }
 }

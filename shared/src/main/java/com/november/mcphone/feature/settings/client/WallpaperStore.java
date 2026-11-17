@@ -2,9 +2,9 @@ package com.november.mcphone.feature.settings.client;
 
 import com.november.mcphone.core.client.ClientPaths;
 import com.november.mcphone.core.PhonePaths;
+import com.november.mcphone.platform.client.Textures;
 import com.mojang.blaze3d.platform.NativeImage;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.renderer.texture.DynamicTexture;
 import net.minecraft.resources.ResourceLocation;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -183,7 +183,7 @@ public final class WallpaperStore {
                     int b = argb & 0xFF;
                     // ARGB → ABGR (Minecraft NativeImage 内部格式)
                     int abgr = (a << 24) | (b << 16) | (g << 8) | r;
-                    nativeImage.setPixelRGBA(x, y, abgr);
+                    Textures.setPixelABGR(nativeImage, x, y, abgr);
                 }
             }
 
@@ -192,7 +192,7 @@ public final class WallpaperStore {
             String texKey = "wp_" + (textureSeq++) + "_"
                     + displayName.toLowerCase().replaceAll("[^a-z0-9_]", "_");
             ResourceLocation texLoc = ResourceLocation.fromNamespaceAndPath("mcphone", texKey);
-            DynamicTexture dynTex = new DynamicTexture(nativeImage);
+            var dynTex = Textures.dynamicTexture(() -> texKey, nativeImage);
             Minecraft.getInstance().getTextureManager().register(texLoc, dynTex);
 
             WALLPAPERS.add(new WallpaperEntry(fileName, displayName, texLoc, imgW, imgH));

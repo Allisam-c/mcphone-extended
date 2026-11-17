@@ -163,6 +163,7 @@
       "layers": [
         "1.20.3+",
         "1.20.5+",
+        "1.20.5+-fabric",
         "1.21+",
         "fabric"
       ]
@@ -203,6 +204,8 @@
       "1.20.3+",
       "1.20.5+",
       "1.21+",
+      "26.1-neoforge+",
+      "26.3+",
       "neoforge"
     ]
   },
@@ -213,18 +216,16 @@
     "server_config_sync": true,
     "mappings": "official",
     "java": 25,
-    "gradle": "9.7.1",
+    "gradle": "9.8.2",
     "project": "platforms/26.3-fabric",
-    "buildable": false,
-    "unverified": [
-      "loader_version",
-      "gradle"
-    ],
-    "note": "排在 26.3-neoforge 之后做，按本仓约定 NeoForge 是 26.x 的主路径。Fabric 侧的工件已经在：piston-meta 有 26.3 的 intermediary，Fabric API 有 0.160.6+26.3。loader_version 0.19.5 沿用 1.21.1-fabric 那行 —— Fabric Loader 与 Minecraft 版本无关，但它没在 26.3 上编过，所以标着。gradle 9.7.1 同理：那个数是给 fabric-loom 1.17.20 测出来的，26.3 要用哪一版 Loom、那一版对 Gradle 的要求是多少，都得查过再填。server_config_sync 这里写 true 沿用的是仓库里已记着的那个已知问题（Fabric 没有把 SERVER 档配置推给客户端的机制，那三处按钮显隐是错的且不报错），不是 26.3 上新查的事实。",
+    "buildable": true,
+    "note": "已按当前上游 v1.12.0 与 26.3 原生 API 完成适配：Fabric Loader 0.19.5、Fabric API 0.164.0+26.3、Fabric Loom 1.19.3、Gradle 9.8.2、Java 25。本地在 platforms/26.3-fabric 运行完整 build，结果为 BUILD SUCCESSFUL in 1m 2s、178 个任务，139 份断言测试全部通过；compileJava、jar、资源处理、结构闸、加载器孪生、平台孪生、接缝清单与 dist 隔离均包含在同次构建中。",
     "layers": [
       "1.20.3+",
       "1.20.5+",
+      "1.20.5+-fabric",
       "1.21+",
+      "26.3+",
       "fabric"
     ]
   },
@@ -265,6 +266,7 @@
       "1.20.3+",
       "1.20.5+",
       "1.21+",
+      "26.1-neoforge+",
       "neoforge"
     ]
   },

@@ -33,5 +33,12 @@ public final class ScriptNetworking {
 
         ScriptRpcHandler.installSender((player, result) ->
                 MCphoneNetwork.sendToPlayer(player, new ScriptRpcResultPayload(result)));
+        // Server-initiated pushes carry the login handshake.
+        ScriptPushHandler.installSender((player, push) ->
+                MCphoneNetwork.sendToPlayer(player, new ScriptPushPayload(push)));
+        // Client-side calls go back through the same payload type after the
+        // handshake has filled in epoch/deployRev/digest.
+        com.november.mcphone.core.script.client.ScriptCall.installSender(
+                rpc -> MCphoneNetwork.sendToServer(new ScriptRpcPayload(rpc)));
     }
 }

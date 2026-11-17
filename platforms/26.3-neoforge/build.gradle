@@ -74,7 +74,7 @@ if (!repoPropsFile.exists()) {
 }
 def repoProps = new Properties()
 repoPropsFile.withInputStream { repoProps.load(it) }
-['mod_id', 'mod_name', 'mod_license', 'mod_group_id', 'mod_version'].each { k ->
+['mod_id', 'mod_name', 'mod_license', 'mod_group_id', 'mod_version', 'mod_authors'].each { k ->
     if (!repoProps.containsKey(k)) {
         throw new GradleException("仓库根的 gradle.properties 缺 ${k}")
     }
@@ -100,11 +100,46 @@ apply from: "${projectDir}/../../gradle/mcphone-layers.gradle"
 apply from: "${projectDir}/../../gradle/mcphone-renames.gradle"
 
 if (mountSharedSources) {
+    // 26.1-neoforge+ 这一层本身就是用 26.x 名字写的，只挂在 26.x 目标上。
+    // 它若走改名挂载，Identifier 会被当成「新名已出现在原文里」而拦下 —— 那不是
+    // 撞车，而是这一层本来就不该再经过老名字的改名表。其余共享层仍照常改名。
+    def postRenameLayers = mcphoneLayers.findAll { it.name == '26.1-neoforge+' }
+    def legacyLayers = mcphoneLayers.findAll { it.name != '26.1-neoforge+' }
     mcphoneMountSharedJava(sourceSets.main.java,
             (['shared/src/main/java': new File(repoRoot, 'shared/src/main/java')] +
-             mcphoneLayers.collectEntries { layer ->
+             legacyLayers.collectEntries { layer ->
                  [("${layer.relDir}/src/main/java"): layer.javaDir]
-             }))
+             }),
+            postRenameLayers.collectEntries { layer ->
+                [("${layer.relDir}/src/main/java"): layer.javaDir]
+            })
+
+    // The shared implementation is tied to PoseStack. 26.3 exposes a 2D
+    // Matrix3x2fStack instead, so keep this one class platform-specific.
+    sourceSets.main.java.exclude(
+            "shared/src/main/java/com/november/mcphone/core/client/PhonePoseScope.java")
+    // 26.3 has platform-specific replacements for these two classes. The
+    // shared/layer copies use older item APIs and must not enter the same
+    // compilation unit as the platform versions.
+    sourceSets.main.java.exclude(
+            "layers/version/1.21+/src/main/java/com/november/mcphone/core/PhoneItem.java")
+    sourceSets.main.java.exclude(
+            "shared/src/main/java/com/november/mcphone/core/client/PhoneItemProperties.java")
+    // Refined Storage has no 26.3 artifact yet. Its old 1.20.5 layer uses the
+    // pre-RS3 SlotReference API; the platform provides a no-op integration
+    // until an RS3 build exists.
+    sourceSets.main.java.exclude(
+            "layers/version/1.20.5+/src/main/java/com/november/mcphone/feature/terminal/integration/refinedstorage/**")
+    // MCEF has no 26.x artifact. Keep the optional browser app visible but
+    // unavailable through a platform no-op backend.
+    sourceSets.main.java.exclude(
+            "shared/src/main/java/com/november/mcphone/feature/browser/client/McefBackend.java")
+    // 26.3 changed both the key event shape and key categories. Keep these two
+    // classes in the platform source set so the loader twins stay identical.
+    sourceSets.main.java.exclude(
+            "layers/loader/neoforge/src/main/java/com/november/mcphone/core/client/AppHotkeyHandler.java")
+    sourceSets.main.java.exclude(
+            "layers/loader/neoforge/src/main/java/com/november/mcphone/core/client/MCphoneKeyBindings.java")
 
     sourceSets.main.resources {
         srcDir('../../shared/src/main/resources')
@@ -122,9 +157,51 @@ sourceSets.main.resources {
     exclude("src/generated/**/.cache") // datagen cache files
 }
 
-// 【没有额外的仓库】。1.21.1 那支在这儿挂了 Modrinth（api.modrinth.com）与
-// modmaven 两个，只为取联动模组的构件；这一支一个联动都不挂（见 gradle.properties），
-// 所以不挂 —— 多挂一个仓库，每解析一个依赖就多问一次。
+// 26.3 的配方成分与 recipe_unlocked 条件格式都和 1.21+ 共享层不同。
+// 平台副本必须排在共享层之后，并由先读到的文件胜出；否则 Gradle 会把
+// 同路径两份资源判成重复错误。
+tasks.named('processResources', ProcessResources).configure {
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+}
+
+repositories {
+    // JavaMP3 是纯 Java、与 Minecraft 版本无关的必需嵌库；26.3 骨架原先只依赖
+    // NeoForge 仓库，而那里没有 fr.delthas。声明成独占来源，动态版本也只查
+    // Central，不会先去 NeoForge 等一次注定失败的元数据请求。
+    exclusiveContent {
+        forRepository {
+            mavenCentral()
+        }
+        filter {
+            includeGroup 'fr.delthas'
+        }
+    }
+
+    // Patchouli has no 26.3 artifact yet. Its 26.1 API build already uses the
+    // 26.x GuiGraphicsExtractor/Identifier surface needed by PhoneBookIcons.
+    exclusiveContent {
+        forRepository {
+            maven {
+                name = "Modrinth"
+                url = "https://api.modrinth.com/maven"
+            }
+        }
+        filter {
+            includeGroup "maven.modrinth"
+        }
+    }
+
+    // AE2WTLib publishes its API as a separate Maven module, while the mod jar
+    // only carries it under META-INF/jarjar. Modrinth supplies the runtime jar;
+    // modmaven supplies the compile-only API classes.
+    maven {
+        name = "modmaven"
+        url = "https://modmaven.dev"
+        content {
+            includeGroup "de.mari_023"
+        }
+    }
+}
 
 base {
     archivesName = mod_id
@@ -175,16 +252,34 @@ configurations {
 }
 
 dependencies {
-    // 【十个联动模组全部不写】。26.3 上它们一个构建都没有（取证见 gradle.properties）。
-    // 等哪家真出了 26.3 构建，对应的 compileOnly 与 compat/ 下那批代码一起回来，
-    // 那时候这一支还得把 repositories 里的 Modrinth 挂回去。
+    // Optional integrations. Patchouli still has no 26.3 artifact; its 26.1
+    // API build is a compile bridge only and is never added to localRuntime.
+    compileOnly "maven.modrinth:patchouli:${patchouli_version}"
 
-    // JavaMP3 与 Rhino 不是联动模组，是嵌进 jar 的库，跟 MC 版本无关，留着它们
-    // 顺带把 jarJar 这条路一起验了。
-    jarJar(implementation("org.mozilla:rhino:[${rhino_version},2.0)"))
+    compileOnly "maven.modrinth:curios:${curios_version}"
+    compileOnly "maven.modrinth:waystones:${waystones_version}"
+    compileOnly "maven.modrinth:balm:${balm_version}"
+    compileOnly "maven.modrinth:ae2:${ae2_version}"
+    compileOnly "maven.modrinth:guideme:${guideme_version}"
+    compileOnly "maven.modrinth:applied-energistics-2-wireless-terminals:${ae2wtlib_version}"
+    compileOnly "de.mari_023:ae2wtlib_api:${ae2wtlib_version}"
+    compileOnly "maven.modrinth:toms-storage:${toms_version}"
 
-    jarJar(implementation("fr.delthas:javamp3:[${javamp3_version},2.0)"))
+    localRuntime "maven.modrinth:curios:${curios_version}"
+    localRuntime "maven.modrinth:waystones:${waystones_version}"
+    localRuntime "maven.modrinth:balm:${balm_version}"
+    localRuntime "maven.modrinth:shogi:${shogi_version}"
+    localRuntime "maven.modrinth:ae2:${ae2_version}"
+    localRuntime "maven.modrinth:guideme:${guideme_version}"
+    localRuntime "maven.modrinth:applied-energistics-2-wireless-terminals:${ae2wtlib_version}"
+    localRuntime "maven.modrinth:toms-storage:${toms_version}"
+
+    // JavaMP3 是嵌进 jar 的必需库。私有 Rhino 由仓库内锁定构件提供，
+    // 坐标、摘要与打包规则统一在 mcphone-engine-dependency.gradle。
+    jarJar(implementation("fr.delthas:javamp3:${javamp3_version}"))
 }
+
+apply from: "${projectDir}/../../gradle/mcphone-engine-dependency.gradle"
 
 var generateModMetadata = tasks.register("generateModMetadata", ProcessResources) {
     var replaceProperties = [
@@ -197,6 +292,7 @@ var generateModMetadata = tasks.register("generateModMetadata", ProcessResources
             mod_name               : mod_name,
             mod_license            : mod_license,
             mod_version            : mod_version,
+            mod_authors            : mod_authors,
     ]
     inputs.properties replaceProperties
     expand replaceProperties
@@ -239,4 +335,45 @@ idea {
 // 骨架阶段不挂 —— 理由在文件头，那是一段【必须一起删掉】的注释。
 if (mountSharedSources) {
     apply from: "${projectDir}/../../gradle/mcphone-checks.gradle"
+}
+
+// 26.3 的主源码已经是 26.x 名字；断言文档仍与旧目标共用，只在
+// compileAssertTests 的输入上做纯改名绑定，避免改动已经完成的共享挂载。
+ext.mcphoneBindMainApiNames = false
+ext.mcphoneApiBindingsFile = '../../versions/26.3-assertion-api-names.json'
+apply from: '../../gradle/mcphone-port-bindings.gradle'
+
+// 26.3 的命令权限 codec 会初始化原版注册表。两项命令断言走 FML
+// 官方的无窗口 JUnit 引导，既不创建服务器或世界，也不进入玩家 JAR。
+def loaderAssertionClasses = layout.buildDirectory.dir('classes/loader-assertion-bootstrap')
+def compileLoaderAssertionBootstrap = tasks.register('compileLoaderAssertionBootstrap', JavaCompile) {
+    source = fileTree('src/assertionBootstrap/java') { include '**/*.java' }
+    classpath = sourceSets.main.compileClasspath
+    destinationDirectory = loaderAssertionClasses
+    javaCompiler = javaToolchains.compilerFor(java.toolchain)
+}
+def loaderAssertionFolders = files(layout.buildDirectory.dir('classes/assert-tests'), sourceSets.main.output)
+def loaderAssertionModClasses = loaderAssertionFolders.files.collect {
+    "${mod_id}%%${it.absolutePath}"
+}.join(File.pathSeparator)
+[
+        DeploymentAuthorityTest: 'com.november.mcphone.core.script.server.DeploymentAuthorityTest',
+        EconomyDataTest: 'com.november.mcphone.core.script.server.economy.EconomyDataTest'
+].each { simple, entry ->
+    tasks.named("assertTest${simple}", JavaExec).configure {
+        dependsOn compileLoaderAssertionBootstrap
+        classpath = files(loaderAssertionClasses, loaderAssertionFolders, sourceSets.main.runtimeClasspath)
+        mainClass = 'com.november.testbootstrap.LoaderAssertionMain'
+        args entry
+        environment 'MOD_CLASSES', loaderAssertionModClasses
+        jvmArgs '--enable-native-access=ALL-UNNAMED', '--sun-misc-unsafe-memory-access=allow',
+                '--add-opens=java.base/java.lang.invoke=ALL-UNNAMED'
+        def runtimeDirectory = layout.buildDirectory.dir("assertion-runtime/${simple}").get().asFile
+        workingDir = runtimeDirectory
+        doFirst {
+            if (!runtimeDirectory.isDirectory() && !runtimeDirectory.mkdirs()) {
+                throw new GradleException("无法创建隔离的断言运行目录：${runtimeDirectory}")
+            }
+        }
+    }
 }

@@ -8,6 +8,7 @@ import com.mojang.blaze3d.vertex.VertexFormat;
 import net.minecraft.client.gui.GuiGraphics;
 import org.lwjgl.opengl.GL11;
 import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.resources.ResourceLocation;
 import org.joml.Matrix4f;
 
 /**
@@ -94,6 +95,31 @@ public final class Draw {
      */
     public static boolean scissorLeaked(GuiGraphics g) {
         return GL11.glIsEnabled(GL11.GL_SCISSOR_TEST);
+    }
+
+    /** 旧目标用一次全局 setColor 包住 blit；调用方只需要给出颜色。 */
+    public static void blitTexture(GuiGraphics g, ResourceLocation tex,
+                                   int x, int y, int w, int h,
+                                   float u, float v, int srcW, int srcH,
+                                   int texW, int texH, int color) {
+        boolean tinted = color != -1;
+        if (tinted) {
+            g.setColor(((color >>> 16) & 255) / 255f, ((color >>> 8) & 255) / 255f,
+                    (color & 255) / 255f, ((color >>> 24) & 255) / 255f);
+        }
+        com.mojang.blaze3d.systems.RenderSystem.enableBlend();
+        com.mojang.blaze3d.systems.RenderSystem.defaultBlendFunc();
+        try {
+            g.blit(tex, x, y, w, h, u, v, srcW, srcH, texW, texH);
+        } finally {
+            com.mojang.blaze3d.systems.RenderSystem.disableBlend();
+            if (tinted) g.setColor(1f, 1f, 1f, 1f);
+        }
+    }
+
+    /** 旧目标仍叫 renderItem。 */
+    public static void renderItem(GuiGraphics g, net.minecraft.world.item.ItemStack stack, int x, int y) {
+        g.renderItem(stack, x, y);
     }
 
     /** 浏览器纹理由本版本负责提交，共用页面不操作全局 GL 状态。 */

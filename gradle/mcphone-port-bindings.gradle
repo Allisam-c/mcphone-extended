@@ -68,24 +68,28 @@ abstract class BindMinecraftApiNames extends DefaultTask {
     }
 }
 
-def bindingsFile = layout.projectDirectory.file('../../versions/26.1-api-names.json')
+def bindMainApiNames = !ext.has('mcphoneBindMainApiNames') || ext.mcphoneBindMainApiNames
+def bindingsPath = ext.find('mcphoneApiBindingsFile') ?: '../../versions/26.1-api-names.json'
+def bindingsFile = layout.projectDirectory.file(bindingsPath.toString())
 def bindings = new groovy.json.JsonSlurper().parseText(providers.fileContents(bindingsFile).asText.get())
-def originalRoots = sourceSets.main.java.srcDirs.collect { root ->
-    fileTree(root) {
-        include '**/*.java'
-        if (root.canonicalFile != file('src/main/java').canonicalFile) exclude(bindings.overrides ?: [])
+if (bindMainApiNames) {
+    def originalRoots = sourceSets.main.java.srcDirs.collect { root ->
+        fileTree(root) {
+            include '**/*.java'
+            if (root.canonicalFile != file('src/main/java').canonicalFile) exclude(bindings.overrides ?: [])
+        }
     }
+    (bindings.overrides ?: []).each { relative ->
+        if (!file("src/main/java/${relative}").isFile()) throw new GradleException("版本覆盖缺少实现：${relative}")
+    }
+    def boundMain = tasks.register('bindMinecraftApiNames', BindMinecraftApiNames) {
+        originalSources.from(originalRoots)
+        qualifiedNames.set(bindings.qualified as Map<String, String>)
+        names.set(bindings.names as Map<String, String>)
+        boundSources.set(layout.buildDirectory.dir('generated/sources/mcphone-api-bindings/main'))
+    }
+    sourceSets.main.java.setSrcDirs([boundMain])
 }
-(bindings.overrides ?: []).each { relative ->
-    if (!file("src/main/java/${relative}").isFile()) throw new GradleException("版本覆盖缺少实现：${relative}")
-}
-def boundMain = tasks.register('bindMinecraftApiNames', BindMinecraftApiNames) {
-    originalSources.from(originalRoots)
-    qualifiedNames.set(bindings.qualified as Map<String, String>)
-    names.set(bindings.names as Map<String, String>)
-    boundSources.set(layout.buildDirectory.dir('generated/sources/mcphone-api-bindings/main'))
-}
-sourceSets.main.java.setSrcDirs([boundMain])
 
 // 断言仍会正常编译、注册和执行；绑定只处理同样的原版改名，不排除任何测试。
 def assertions = tasks.named('compileAssertTests', JavaCompile)

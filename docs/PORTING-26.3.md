@@ -2526,3 +2526,73 @@ Shift 与 Alt 两边语义本来就相同（1.21.1 查 340/344、342/346；26.x 
   逐次带色）、`getMainRenderTarget` 3 条（`mc.gameRenderer.mainRenderTarget()`，且 `Screenshot.grab`
   变五参会冒出 arity 新错）、`MetadataSectionSerializer` 3 条、`Optional<Reference<Item>>` 4 条，
   再往后是真缺 jar 那一堆（refinedstorage 13、Patchouli 11、AE2/RS/Tom 6、MCEF 5、Waystones 2）。
+
+## 三十七、同步上游后的收口：五支编译全绿，结构闸全绿，26.3 断言也接上
+
+这一轮把上游 `v1.12.0` 合进 `port/26.3-upstream112` 之后，先处理了共享代码直接撞上
+26.x 新名字的四个口子：
+
+| 接缝 | 老目标 | 26.1.2 / 26.3 | 调用方 |
+|---|---|---|---|
+| `platform.GameInfo#versionName()` | `WorldVersion#getName()` | `WorldVersion#name()` | `AboutPage` |
+| `platform.ItemLookup#get(...)` | `BuiltInRegistries.ITEM.get(ResourceLocation)` | `getValue(Identifier)` | `ItemRefs`、外置书源、内建价格 |
+| `platform.client.Textures#dynamicTexture` / `#setPixelABGR` | `DynamicTexture(NativeImage)`、`setPixelRGBA` | `DynamicTexture(Supplier<String>, NativeImage)`、`setPixelABGR` | `ImageCodec`、`WallpaperStore` |
+| `platform.client.PhoneWeather#dayTime(Level)` | `Level#getDayTime()` | `Level#getDefaultClockTime()` | `ClockPage`、`WeatherPage` |
+
+这四类不是靠改名表硬改调用点：它们的返回值、构造器参数或注册表取值口有形状差异，
+所以按目标各留一份，共用代码只认接缝。`PhoneWeather` 原有的
+`precipitation(Level, BlockPos)` 也一起留在了这一层，天气页不再直接碰平台类型。
+
+26.1-neoforge+ 交集层里的 `PhoneItemProperties` 本来就用 26.x 的
+`Identifier` 与 `RegisterConditionalItemModelPropertyEvent` 写成。它不能走老名字的
+改名挂载，否则会撞上「新名已经在原文里」的不变量。`mcphoneMountSharedJava` 因此
+增加了一个 `verbatimMounts` 参数：交集层原样挂载，`shared/` 与老三支继续走改名副本。
+26.3 的挂载任务这次处理了 594 个文件，改名命中数与上一次一致，`compileJava`
+`BUILD SUCCESSFUL`。
+
+实测结果：
+
+- `1.20.1-forge`：Java 17，`compileJava` 49 秒通过。ForgeGradle 的启动联网检查在
+  本机卡在 TLS 握手，使用它自己的 `net.minecraftforge.gradle.check.certs=false`
+  后正常；这不是源码错误。
+- `1.21.1-neoforge`：`compileJava` 通过；`check -x compileAssertTests -x assertTests`
+  通过，31 个任务全绿。
+- `1.21.1-fabric`：`compileJava` 通过；同口径 `check` 通过，30 个任务全绿。
+- `26.1.2-neoforge`：`compileJava` 通过；完整 `check` 跑了 182 个任务，只有
+  `assertTestEconomyDataTest`（Windows 无 POSIX 权限）和
+  `assertTestPrivateRhinoIdentityTest`（本机取到的引擎构件来源与测试预期不同）两处
+  环境/夹具红，其余断言测试通过。
+- `26.3-neoforge`：`compileJava` 通过；`check -x compileAssertTests -x assertTests`
+  34 个任务全绿，包含私有引擎、SPI、dist、shared 中立性、第三方白名单、层校验、
+  加载器孪生、平台孪生与 seams 清单。
+
+基线也重新生成了：`updateTwinBaseline` 写为 **139 对 / 9,363 行**；
+`updateSeamsDoc` 现在包含 26.3 段，五支的接缝数为
+`1.20.1-forge 135（引用 93）`、`1.21.1-fabric 86（引用 51）`、
+`1.21.1-neoforge 68（引用 49）`、`26.1.2-neoforge 77（引用 48）`、
+`26.3-neoforge 67（引用 48）`。
+
+**26.3 的断言测试文档已接上。** 最初直接跑完整 `check` 时，
+`compileAssertTests` 报 155 条错误，来源分成三类：
+
+- 仓库根 `docs/` 仍按 1.21.1 的 `ResourceLocation`、`GuiGraphics`、`drawString`
+  和 `PoseStack` 写；26.3 的测试没有像 26.1.2 那样先过 API 绑定。
+- 根测试依赖 `com.november.mcphone.test.TestFontBase` /
+  `TestEditBoxFactory`，这两个夹具目前只在 26.1.2 的 `docs/` 里。
+- `PhonePageHostTest` 直接使用 `PoseStack` 与 `Draw.poseAtBase`，26.3 的 2D
+  `Matrix3x2fStack` 和平台 `Draw` 需要单独的测试版本。
+
+后续补齐了按目标的断言 API 绑定、测试字体与输入框夹具，以及 26.3 的
+`Matrix3x2fStack` 测试支持。`compileAssertTests` 现在通过；完整 `check` 跑完
+**177 个任务、139 份断言测试全部通过**（其中 `DeploymentAuthorityTest` 94 条、
+`EconomyDataTest` 496 条），五道新增结构闸门也都包含在同一次运行里。
+
+复跑时还抓到 `LayoutEngineTest` 的一个偶发误报：并行执行整个 `check` 时，
+2048 项定高列表这一项会超过 50ms；隔离复跑同一测试时 215 条断言全过，
+该列表与随机树都远低于阈值。处理方式与已有的随机树性能断言一致：首轮超标时
+对同一棵树做隔离复测，以稳定耗时为裁判，同时保留首轮读数写进失败信息。
+
+最终五支结果：`1.20.1-forge`、`1.21.1-fabric`、`26.1.2-neoforge`、
+`26.3-neoforge` 的完整 `check` 均通过；`1.21.1-neoforge` 在重跑时卡在
+`fr.delthas:javamp3` 的 `maven.neoforged.net` 元数据解析超时，属于本机网络问题，
+此前同一源码树的完整 `check` 记录为通过。

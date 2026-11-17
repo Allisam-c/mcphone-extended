@@ -14,6 +14,7 @@ import com.november.mcphone.feature.chat.net.TeleportToFriendPacket;
 import com.november.mcphone.feature.chat.group.GroupSummary;
 import com.november.mcphone.feature.chat.group.net.GroupClientCache;
 import com.november.mcphone.core.client.GuiUtil;
+import com.november.mcphone.platform.client.Transforms;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.network.chat.Component;
@@ -332,15 +333,15 @@ public final class ChatList {
     private static void renderTeleportIcon(GuiGraphics g, Font font,
                                            int x, int y, ChatLayout.Card layout, boolean hovered) {
         // 图标保持透明底；点击区域继续使用原布局，去框后不缩小操作范围。
-        g.pose().pushPose();
+        Transforms.push(g);
         try {
-            g.pose().translate(x + layout.teleportX(), y + layout.teleportY(), 0);
+            Transforms.translate(g, x + layout.teleportX(), y + layout.teleportY());
             if (!PhoneSkin.draw(g, PhoneSkin.Element.CHAT_TELEPORT, 0, 0, TP_ICON_SIZE, TP_ICON_SIZE)) {
                 ChatUi.centeredText(g, font, "→", TP_ICON_SIZE / 2f, 0, ChatLayout.TEXT_SCALE,
                         hovered ? FontPalette.title() : FontPalette.link());
             }
         } finally {
-            g.pose().popPose();
+            Transforms.pop(g);
         }
     }
 

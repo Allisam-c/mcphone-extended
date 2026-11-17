@@ -8,6 +8,7 @@ import net.minecraft.server.network.Filterable;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.component.WritableBookContent;
+import com.november.mcphone.platform.PlayerAccess;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -42,7 +43,7 @@ public final class NotePrinter {
 
         // 背包满了就掉在脚下，而不是把书连同那本空白书一起吞掉
         if (!player.getInventory().add(book)) {
-            player.drop(book, false);
+            PlayerAccess.drop(player, book, false);
         }
         return true;
     }

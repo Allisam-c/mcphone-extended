@@ -56,7 +56,9 @@ public final class NetworkHandler {
 
     // ---- 由 MCphone 构造函数调用 ----
     public static void register(final RegisterPayloadHandlersEvent event) {
-        PayloadRegistrar registrar = event.registrar("2");
+        // "10" is the v1.12 protocol. The reply/ticket fields and the group
+        // and profile packets all share this wire revision.
+        PayloadRegistrar registrar = event.registrar("10");
 
         // C2S: 玩家选了壁纸
         MCphoneNetwork.registerToServer(
@@ -121,12 +123,18 @@ public final class NetworkHandler {
         // 【最末尾】脚本 RPC 的三个包（§15.3）。追加在全部现有包之后，所以不动
         // 协议版本号；插在中间是能编过的，代价是老客户端把 A 包当 B 包解码
         com.november.mcphone.core.script.net.ScriptNetworking.register(registrar);
+        com.november.mcphone.feature.chat.group.net.GroupNetworking.register(registrar);
+        com.november.mcphone.feature.chat.profile.net.ProfileNetworking.register(registrar);
     }
 
     //  处理函数
 
     /** 两只手必须逐一更新，否则同时打开 HUD 和全屏设备时会误灭其中一台。 */
     private static void handlePhoneScreenOn(PhoneScreenOnPacket packet, ServerPlayer player) {
+        // SCREEN_STATE is absolute state, not an increment. It is intentionally
+        // not throttled: dropping one update leaves the server-side lit bit
+        // stale until reconnect.
+        if (!PhoneItem.isCarriedBy(player)) return;
         for (InteractionHand hand : InteractionHand.values()) {
             ItemStack held = player.getItemInHand(hand);
             if (packet.isLit(hand) && PhoneItem.isDevice(held)) {
@@ -139,13 +147,17 @@ public final class NetworkHandler {
 
     /** 服务端收到：记录壁纸选择，广播给该玩家的客户端 */
     private static void handleSetWallpaper(SetWallpaperPacket packet, ServerPlayer player) {
-        PhonePlayerData.of(player).setWallpaper(new WallpaperData(packet.wallpaperFileName()));
+        if (!PhoneItem.isCarriedBy(player)
+                || !RequestThrottle.allow(player, RequestThrottle.Kind.SETTINGS)) return;
+        String wallpaper = WallpaperData.sanitize(packet.wallpaperFileName());
+        if (!packet.wallpaperFileName().isEmpty() && wallpaper.isEmpty()) return;
+        PhonePlayerData.of(player).setWallpaper(new WallpaperData(wallpaper));
 
         // 发回给该玩家确认
-        MCphoneNetwork.sendToPlayer(player, new SyncWallpaperPacket(packet.wallpaperFileName()));
+        MCphoneNetwork.sendToPlayer(player, new SyncWallpaperPacket(wallpaper));
 
         MCphone.LOGGER.debug("玩家 {} 设置壁纸: {}", player.getName().getString(),
-                packet.wallpaperFileName().isEmpty() ? "默认" : packet.wallpaperFileName());
+                wallpaper.isEmpty() ? "默认" : wallpaper);
     }
 
     /**
@@ -161,6 +173,7 @@ public final class NetworkHandler {
      * 不归原版管，故统一调一次 writeBack，由位置自己决定要不要动作。
      */
     private static void handleSetDeviceName(SetDeviceNamePacket packet, ServerPlayer player) {
+        if (!RequestThrottle.allow(player, RequestThrottle.Kind.SETTINGS)) return;
         ItemStack stack = packet.location().resolve(player);
 
         // 那个位置上不是手机就什么都不做：位置由客户端给出，可能已经

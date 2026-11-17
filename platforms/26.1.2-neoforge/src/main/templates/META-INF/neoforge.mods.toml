@@ -42,7 +42,7 @@ displayURL="https://github.com/november521/mcphone" #optional
 #credits="" #optional
 
 # The authors of the mod, displayed in the mod UI (optional)
-authors="november521"
+authors="${mod_authors}"
 
 # The description text for the mod (multi line!) (#mandatory)
 description='''

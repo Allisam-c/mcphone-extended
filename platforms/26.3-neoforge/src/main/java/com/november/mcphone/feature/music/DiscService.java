@@ -6,6 +6,7 @@ import com.november.mcphone.core.PhonePlayerData;
 import com.november.mcphone.core.net.MCphoneNetwork;
 import com.november.mcphone.feature.music.net.PlayNetSongPacket;
 import com.november.mcphone.feature.music.net.StopNetSongPacket;
+import com.november.mcphone.feature.music.net.SyncDiscStatePacket;
 import net.minecraft.core.RegistryAccess;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.core.Holder;
@@ -107,7 +108,7 @@ public final class DiscService {
         long length = lengthInTicks(player, state.disc());
         if (length <= 0L) return DiscState.NOT_PLAYING;
 
-        long now = player.level().getGameTime();
+        long now = player.level().getLevelData().getGameTime();
         long ends = state.startedTick() + length;
 
         // now < startedTick 只在游戏刻倒流（存档回滚）时出现，当作没在放，否则那张唱片再也停不下来
@@ -117,6 +118,31 @@ public final class DiscService {
 
     private static boolean isPlaying(ServerPlayer player, DiscState state) {
         return playingUntil(player, state) != DiscState.NOT_PLAYING;
+    }
+
+    /** 每个服务端 tick 调用；到达轮次边界时重放，并把起点推进到稳定的整轮边界。 */
+    public static boolean tickLoop(ServerPlayer player) {
+        DiscState state = PhonePlayerData.of(player).disc();
+        if (state.startedTick() < 0L || !state.hasDisc()) return false;
+        if (!PhoneItem.isCarriedBy(player)) {
+            stopPlayback(player);
+            return true;
+        }
+
+        long length = lengthInTicks(player, state.disc());
+        long now = player.level().getLevelData().getGameTime();
+        if (!DiscLoop.isDue(state.startedTick(), length, now)) return false;
+
+        long periodStart = DiscLoop.periodStart(state.startedTick(), length, now);
+        if (!startSound(player, state.disc())) return false;
+        PhonePlayerData.of(player).setDisc(state.playingSince(periodStart));
+        return true;
+    }
+
+    /** 循环接棒或因手机离身停止后，把新的真值推回客户端。 */
+    public static void syncState(ServerPlayer player) {
+        MCphoneNetwork.sendToPlayer(player, new SyncDiscStatePacket(
+                PhonePlayerData.of(player).disc().disc().copy(), playingUntil(player)));
     }
 
     /** 仓里那张东西有多长（游戏刻）；NetMusic CD 的秒数也换算到刻。不认识返回 -1 */
@@ -142,7 +168,8 @@ public final class DiscService {
 
         if (!startSound(player, state.disc())) return Outcome.NOTHING;
 
-        PhonePlayerData.of(player).setDisc(state.playingSince(player.level().getGameTime()));
+        PhonePlayerData.of(player).setDisc(state.playingSince(
+                player.level().getLevelData().getGameTime()));
         return Outcome.OK;
     }
 
@@ -188,8 +215,7 @@ public final class DiscService {
         Set<UUID> ids = LISTENERS.get(player.getUUID());
         if (ids == null) return nearbyPlayers(player);
 
-        var server = player.getServer();
-        if (server == null) return List.of();
+        var server = player.level().getServer();
 
         List<ServerPlayer> out = new ArrayList<>(ids.size());
         for (UUID id : ids) {
@@ -202,7 +228,7 @@ public final class DiscService {
     /** 这个物品能不能放进唱片仓。唱片格与主手放入两处共用这一个判据，不许各写各的 */
     public static boolean isPlayableDisc(RegistryAccess registries, ItemStack stack) {
         if (stack.isEmpty()) return false;
-        return JukeboxSong.fromStack(registries, stack).isPresent()
+        return JukeboxSong.fromStack(stack).isPresent()
                 || NetMusicCompat.songOf(stack).isPresent();
     }
 
@@ -255,7 +281,7 @@ public final class DiscService {
         if (vanilla.isPresent()) {
             SoundEvent sound = vanilla.get().value().soundEvent().value();
             ClientboundStopSoundPacket packet =
-                    new ClientboundStopSoundPacket(sound.getLocation(), SoundSource.RECORDS);
+                    new ClientboundStopSoundPacket(sound.location(), SoundSource.RECORDS);
 
             for (ServerPlayer p : audience) p.connection.send(packet);
             return;
@@ -270,6 +296,6 @@ public final class DiscService {
     /** 这个物品是唱片吗；是的话给出曲子定义。查 JUKEBOX_PLAYABLE 组件而不是物品类型，别的模组/数据包的唱片也认得 */
     private static Optional<Holder<JukeboxSong>> songOf(ServerPlayer player, ItemStack stack) {
         if (stack.isEmpty()) return Optional.empty();
-        return JukeboxSong.fromStack(player.level().registryAccess(), stack);
+        return JukeboxSong.fromStack(stack);
     }
 }

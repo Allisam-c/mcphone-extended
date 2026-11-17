@@ -28,4 +28,17 @@ public final class KeyModifiers {
     public static boolean isModifierKey(InputConstants.Key key) {
         return KeyModifier.isKeyCodeModifier(key);
     }
+
+    /** 当前按着的 Ctrl；macOS 上沿用适配器的 Command 语义。 */
+    public static boolean ctrl() {
+        return com.november.mcphone.platform.client.port.PhoneInputs.control();
+    }
+
+    public static boolean shift() {
+        return com.november.mcphone.platform.client.port.PhoneInputs.shift();
+    }
+
+    public static boolean alt() {
+        return com.november.mcphone.platform.client.port.PhoneInputs.alt();
+    }
 }

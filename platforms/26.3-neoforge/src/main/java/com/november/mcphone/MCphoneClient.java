@@ -18,7 +18,8 @@ import com.november.mcphone.feature.camera.client.CameraFlash;
 import com.november.mcphone.feature.camera.client.CameraHandler;
 import com.november.mcphone.feature.chat.client.ChatImageCache;
 import com.november.mcphone.feature.chat.client.ChatImageSender;
-import com.november.mcphone.feature.chat.client.ChatNotifier;
+import com.november.mcphone.feature.chat.client.ChatClientEvents;
+import com.november.mcphone.feature.chat.client.ChatGroupEvents;
 import com.november.mcphone.feature.chat.net.ChatClientCache;
 import com.november.mcphone.feature.music.client.DiscBayScreen;
 import com.november.mcphone.feature.music.client.DiscClientCache;
@@ -41,7 +42,7 @@ import net.neoforged.fml.common.Mod;
 import net.neoforged.fml.config.ModConfig;
 import net.neoforged.fml.event.lifecycle.FMLClientSetupEvent;
 import net.neoforged.neoforge.client.event.ClientPlayerNetworkEvent;
-import net.neoforged.neoforge.client.event.RegisterClientReloadListenersEvent;
+import net.neoforged.neoforge.client.event.AddClientReloadListenersEvent;
 import net.neoforged.neoforge.client.event.RegisterMenuScreensEvent;
 import net.neoforged.neoforge.client.gui.ConfigurationScreen;
 import net.neoforged.neoforge.client.gui.IConfigScreenFactory;
@@ -58,7 +59,18 @@ public class MCphoneClient {
         modEventBus.addListener(ClientConfig::onReload);
         container.registerConfig(ModConfig.Type.CLIENT, ClientConfig.SPEC);
 
+        // Install the handshake and RPC routers before the first login. A
+        // handshake pushed during login is lost if these are installed later.
+        com.november.mcphone.core.script.client.ClientHandshake.install();
+        com.november.mcphone.core.script.client.ScriptCall.install();
+
+        NeoForge.EVENT_BUS.addListener(
+                (net.neoforged.neoforge.client.event.RegisterClientCommandsEvent event) ->
+                        com.november.mcphone.core.script.client.ScriptClientCommand.register(
+                                event.getDispatcher(), (source, message) -> source.sendSuccess(() -> message, false)));
+
         modEventBus.addListener(MCphoneKeyBindings::register);
+        modEventBus.addListener(com.november.mcphone.core.client.PhoneItemProperties::register);
 
         // 副手 HUD 那一层。插在原版战利品条之后：玩法 HUD 之上，F3 与聊天框之下
         modEventBus.addListener(PhoneHud::onRegisterLayers);
@@ -90,6 +102,7 @@ public class MCphoneClient {
 
         // 冷却期里点的那几张图排着，每 tick 看一眼闸开了没有；队伍空的时候第一行就返回
         ClientTicks.onEndTick(ChatImageSender::tick);
+        ClientTicks.onEndTick(com.november.mcphone.platform.client.PlayerSkins::tick);
 
         // 一首停下来时带停止原因通知控制器，见 LocalPlayback.Ending
         LocalPlayback.setEndListener(MusicController::onTrackEnded);
@@ -105,9 +118,9 @@ public class MCphoneClient {
                     PhoneHud.onWorldLeave();
                     PhoneScreenOnSync.forget();
 
-                    ChatClientCache.clear();
-                    ChatImageCache.clear();
-                    ChatImageSender.clear();
+                    com.november.mcphone.core.script.client.ClientHandshake.clear();
+                    com.november.mcphone.core.script.client.ScriptCall.clear();
+                    com.november.mcphone.feature.chat.client.ChatClientLifecycle.disconnect();
                     NotesClientCache.clear();
                     StoreClientCache.clear();
                     PhoneScreenRegistry.unloadWorld();
@@ -143,7 +156,8 @@ public class MCphoneClient {
         StoreClientCache.setSyncListener(
                 PhoneScreenRegistry::enforcePurchases);
 
-        ChatClientCache.setMessageListener(ChatNotifier::onMessage);
+        ChatClientCache.setMessageListener(ChatClientEvents::onMessage);
+        ChatGroupEvents.install();
         ChatClientCache.setImageListener(ChatImageCache::accept);
     }
 
@@ -156,12 +170,13 @@ public class MCphoneClient {
      * App 包里的图片一并还回去：它们是 DynamicTexture，重载之后未必还在。
      */
     @SubscribeEvent
-    static void onRegisterReloadListeners(RegisterClientReloadListenersEvent event) {
-        event.registerReloadListener((ResourceManagerReloadListener) manager -> {
-            PhoneSkin.clearCache();
-            AppTextures.clearCache();
-            CameraFlash.dispose();
-        });
+    static void onRegisterReloadListeners(AddClientReloadListenersEvent event) {
+        event.addListener(net.minecraft.resources.Identifier.fromNamespaceAndPath("mcphone", "client_cache"),
+                (ResourceManagerReloadListener) manager -> {
+                    PhoneSkin.clearCache();
+                    AppTextures.clearCache();
+                    CameraFlash.dispose();
+                });
     }
 
     /** 把菜单类型与界面类绑定。不注册的话，服务端 openMenu 后客户端什么都不显示。 */
@@ -174,10 +189,6 @@ public class MCphoneClient {
 
     @SubscribeEvent
     static void onClientSetup(FMLClientSetupEvent event) {
-        // 手机物品的黑屏/白屏切换。enqueueWork 是必须的：ItemProperties 后面是普通 HashMap，
-        // 而这个事件和别的模组并行跑，见 PhoneItemProperties
-        event.enqueueWork(com.november.mcphone.core.client.PhoneItemProperties::register);
-
         // 必须在 App 目录构建之前：BrowserApp 登记时会问后端在不在
         com.november.mcphone.feature.browser.client.BrowserBackends.installDefault();
 

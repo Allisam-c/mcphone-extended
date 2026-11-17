@@ -2,6 +2,7 @@ package com.november.mcphone.feature.chat;
 
 import com.november.mcphone.core.ServerConfig;
 import net.minecraft.network.chat.Component;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
@@ -24,17 +25,18 @@ public final class TeleportService {
 
         ServerPlayer target = self.level().getServer().getPlayerList().getPlayer(targetId);
         if (target == null) return TeleportOutcome.PEER_OFFLINE;
+        ServerLevel targetLevel = (ServerLevel) target.level();
 
         // 出发点的音效必须在传送之前响，之后 self 已经在另一头了
         self.level().playSound(null, self.getX(), self.getY(), self.getZ(),
                 SoundEvents.ENDERMAN_TELEPORT, SoundSource.PLAYERS, 1.0F, 1.0F);
 
         // 这一个调用同时覆盖同维度与跨维度，且自带 stopRiding()，不必自己先下马
-        com.november.mcphone.platform.PlayerAccess.teleport(self,target.serverLevel(),
+        com.november.mcphone.platform.PlayerAccess.teleport(self, targetLevel,
                 target.getX(), target.getY(), target.getZ(),
                 target.getYRot(), target.getXRot());
 
-        target.serverLevel().playSound(null, target.getX(), target.getY(), target.getZ(),
+        targetLevel.playSound(null, target.getX(), target.getY(), target.getZ(),
                 SoundEvents.ENDERMAN_TELEPORT, SoundSource.PLAYERS, 1.0F, 1.0F);
 
         // 走动作栏不走聊天框：即时事件不该在公屏历史里留一行

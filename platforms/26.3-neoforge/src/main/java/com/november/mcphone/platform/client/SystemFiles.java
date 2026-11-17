@@ -37,4 +37,9 @@ public final class SystemFiles {
     public static void openInFileManager(Path dir) {
         Blaze3D.openPath(dir);
     }
+
+    /** Open a URI with the platform's default handler. */
+    public static void openUri(String uri) {
+        Blaze3D.openUri(java.net.URI.create(uri));
+    }
 }

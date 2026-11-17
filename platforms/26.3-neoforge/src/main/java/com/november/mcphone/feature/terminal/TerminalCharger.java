@@ -4,8 +4,10 @@ import com.november.mcphone.core.ServerConfig;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.item.ItemStack;
 import net.neoforged.neoforge.capabilities.Capabilities;
-import net.neoforged.neoforge.energy.IEnergyStorage;
 import net.neoforged.neoforge.event.tick.PlayerTickEvent;
+import net.neoforged.neoforge.transfer.access.ItemAccess;
+import net.neoforged.neoforge.transfer.energy.EnergyHandler;
+import net.neoforged.neoforge.transfer.transaction.Transaction;
 
 /**
  * 手机替卡槽里那台终端供电 —— 装进去就不会没电。
@@ -95,14 +97,20 @@ public final class TerminalCharger {
         ItemStack terminal = TerminalSlot.get(player);
         if (terminal.isEmpty()) return;
 
-        // 没挂能量能力的（Tom's 的终端、以及任何不用电的东西）到这儿就结束了
-        IEnergyStorage energy = terminal.getCapability(Capabilities.EnergyStorage.ITEM);
-        if (energy == null || !energy.canReceive()) return;
+        // 26.3 的能量能力改成 ResourceHandler；ItemAccess 负责把物品堆包成可写的上下文。
+        ItemAccess access = ItemAccess.forStack(terminal);
+        EnergyHandler energy = access.getCapability(Capabilities.Energy.ITEM);
+        if (energy == null) return;
 
-        int missing = energy.getMaxEnergyStored() - energy.getEnergyStored();
+        long missing = energy.getCapacityAsLong() - energy.getAmountAsLong();
         if (missing <= 0) return;
 
-        // 满了就不必再同步。这一句也顺带兜住"能力说得收、实际一点都收不进"的实现
-        if (energy.receiveEnergy(missing, false) > 0) TerminalSlot.markChanged(player);
+        try (Transaction transaction = Transaction.openRoot()) {
+            int accepted = energy.insert((int) Math.min(Integer.MAX_VALUE, missing), transaction);
+            if (accepted > 0) {
+                transaction.commit();
+                TerminalSlot.markChanged(player);
+            }
+        }
     }
 }

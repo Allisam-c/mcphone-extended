@@ -933,6 +933,11 @@ public class EconomyDataTest {
         Path snap = eco.resolve("economy.dat");
         EconomySnapshot.write(snap, goodTag(UUID.randomUUID()));
         Path mcFile = dir.resolve("mcphone_economy.dat");                 // SavedData 不在
+        if (!Files.getFileStore(eco).supportsFileAttributeView(
+                java.nio.file.attribute.PosixFileAttributeView.class)) {
+            System.out.println("（跳过 unreadableIsNotAbsent：当前文件系统没有 POSIX 权限）");
+            return;
+        }
         Files.setPosixFilePermissions(eco, java.util.EnumSet.noneOf(java.nio.file.attribute.PosixFilePermission.class));
         try {
             if (Files.exists(snap) || Files.notExists(snap)) {
@@ -2135,9 +2140,7 @@ public class EconomyDataTest {
     }
 
     static net.minecraft.commands.CommandSourceStack source(int level) {
-        return new net.minecraft.commands.CommandSourceStack(net.minecraft.commands.CommandSource.NULL,
-                net.minecraft.world.phys.Vec3.ZERO, net.minecraft.world.phys.Vec2.ZERO, null, com.november.mcphone.test.CommandPermissions.level(level), "t",
-                Component.literal("t"), null, null);
+        return com.november.mcphone.test.CommandSourceStackFactory.create(level);
     }
 
     /** 1000 次合法调用经网关、两条 worker 并发：总额不变，对账平（builtin 档；计分板档要真服，在 S15g）。 */

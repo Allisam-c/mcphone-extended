@@ -1,6 +1,7 @@
 package com.november.mcphone.feature.weather.client;
 
 import com.november.mcphone.MCphone;
+import com.november.mcphone.platform.client.PhoneWeather;
 import com.november.mcphone.platform.client.Transforms;
 import com.november.mcphone.core.client.FontPalette;
 import com.november.mcphone.core.client.PhoneTheme;
@@ -79,7 +80,7 @@ public final class WeatherPage {
         }
 
         Weather.Kind kind = currentKind(level, player);
-        boolean night = WorldClock.isNight(level.getDayTime());
+        boolean night = WorldClock.isNight(PhoneWeather.dayTime(level));
 
         // ---- 天气图标，居中 ----
         int iconX = phoneLeft + (screenW - ICON_SIZE) / 2;
@@ -120,7 +121,7 @@ public final class WeatherPage {
 
         Weather.Precip local;
         try {
-            local = toPrecip(com.november.mcphone.platform.client.PhoneWeather.precipitation(level,pos));
+            local = toPrecip(PhoneWeather.precipitation(level,pos));
         } catch (Throwable t) {
             // 生物群系拿不到（区块还没到、别的模组的自定义群系抛了异常）时
             // 按"什么都不落"算。为了一行天气预报崩掉整个手机界面不值得

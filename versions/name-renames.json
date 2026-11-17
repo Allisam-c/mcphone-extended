@@ -104,7 +104,9 @@
     "drawString": "text",
     "drawCenteredString": "centeredText",
     "setScreen": "setScreenAndShow",
-    "renderOutline": "outline"
+    "renderOutline": "outline",
+    "writeResourceLocation": "writeIdentifier",
+    "readResourceLocation": "readIdentifier"
   },
   "packageRenames": {
     "net.minecraft.Util": "net.minecraft.util.Util"

@@ -361,15 +361,14 @@ public final class HomeGrid {
         int top = phoneTop + PhoneTheme.STATUS_BAR_HEIGHT;
         int h = dotsTop() - top;
 
-        // setColor 调制透明度后必须还原，否则后面的东西跟着变淡
-        g.setColor(1f, 1f, 1f, progress);
-        boolean drawn = PhoneSkin.draw(g, PhoneSkin.Element.HOME_PAGE_EDGE, x, top, w, h);
-        g.setColor(1f, 1f, 1f, 1f);
+        int tintAlpha = Math.max(0, Math.min(255, Math.round(progress * 255f)));
+        boolean drawn = PhoneSkin.draw(g, PhoneSkin.Element.HOME_PAGE_EDGE, x, top, w, h,
+                0xFFFFFF | tintAlpha << 24);
 
         if (!drawn) {
-            int alpha = (int) (progress * ((PhoneTheme.COLOR_PAGE_EDGE >>> 24) & 0xFF));
+            int fillAlpha = (int) (progress * ((PhoneTheme.COLOR_PAGE_EDGE >>> 24) & 0xFF));
             g.fill(x, top, x + w, top + h,
-                    (alpha << 24) | (PhoneTheme.COLOR_PAGE_EDGE & 0x00FFFFFF));
+                    (fillAlpha << 24) | (PhoneTheme.COLOR_PAGE_EDGE & 0x00FFFFFF));
         }
     }
 

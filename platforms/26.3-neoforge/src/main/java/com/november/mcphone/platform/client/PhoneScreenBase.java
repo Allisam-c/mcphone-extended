@@ -49,6 +49,24 @@ public abstract class PhoneScreenBase extends Screen {
         super(title);
     }
 
+    /** 共用页面用它决定是否由自己的 render 铺整屏背景；26.1 的基类也有同名入口。 */
+    protected boolean shouldDrawBackground() {
+        return true;
+    }
+
+    /**
+     * 背景属于原版入口的独立阶段，必须在 {@code extractRenderState} 之前处理。
+     * 共用层的 {@code render} 已经对应后一阶段，不能再从那里转调这里。
+     */
+    @Override
+    public void extractBackground(GuiGraphicsExtractor g, int mouseX, int mouseY, float partialTick) {
+        if (shouldDrawBackground()) {
+            super.extractBackground(g, mouseX, mouseY, partialTick);
+        } else {
+            this.minecraft.gui.hud.extractDeferredSubtitles();
+        }
+    }
+
     // ==== 这一次派发带进来的原版事件，供中立方法的默认实现交回原版 ====
 
     private MouseButtonEvent pendingButton;
@@ -129,16 +147,16 @@ public abstract class PhoneScreenBase extends Screen {
     public boolean keyPressed(KeyEvent event) {
         pendingKey = event;
         try {
-            return keyPressed(event.key(), event.keycode(), event.modifiers());
+            return keyPressed(event.keycode(), event.key(), event.modifiers());
         } finally {
             pendingKey = null;
         }
     }
 
     /**
-     * 中立形状。{@code keyCode} 对应 {@code KeyEvent.key()}（逻辑键），
-     * {@code scanCode} 对应 {@code KeyEvent.keycode()}（物理键）—— 与 1.21.1 那三个
-     * 参数按位置对得上，共用代码里比的是 {@code GLFW.GLFW_KEY_*} 那一族常量。
+     * 中立形状。{@code keyCode} 对应 {@code KeyEvent.key()}（SDL 物理 scancode），
+     * {@code scanCode} 对应 {@code KeyEvent.keycode()}（SDL 虚拟键码）—— 与 1.21.1 那三个
+     * 参数按位置对得上，共用代码里的 {@code InputConstants.KEY_*} 常量在本支也是 scancode。
      */
     public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
         KeyEvent e = pendingKey;
@@ -149,7 +167,7 @@ public abstract class PhoneScreenBase extends Screen {
     public boolean keyReleased(KeyEvent event) {
         pendingKey = event;
         try {
-            return keyReleased(event.key(), event.keycode(), event.modifiers());
+            return keyReleased(event.keycode(), event.key(), event.modifiers());
         } finally {
             pendingKey = null;
         }
@@ -164,10 +182,18 @@ public abstract class PhoneScreenBase extends Screen {
     public boolean charTyped(CharacterEvent event) {
         pendingChar = event;
         try {
-            return charTyped((char) event.codepoint(), 0);
+            return charTyped(event.codepoint(), 0);
         } finally {
             pendingChar = null;
         }
+    }
+
+    /**
+     * 码点入口。26.1 的适配器有同名方法；26.3 的 {@link CharacterEvent} 也只带
+     * codepoint，所以这里把超出 BMP 的码点交给原版字符入口前先做一次显式判断。
+     */
+    public boolean charTyped(int codePoint, int modifiers) {
+        return codePoint >= 0 && codePoint <= 0xFFFF && charTyped((char) codePoint, modifiers);
     }
 
     /**

@@ -1,8 +1,7 @@
 package com.november.mcphone.core.client;
 
 import com.november.mcphone.platform.client.Transforms;
-import com.mojang.blaze3d.systems.RenderSystem;
-import net.minecraft.client.Minecraft;
+import com.november.mcphone.platform.client.Draw;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.network.chat.Component;
@@ -82,11 +81,11 @@ public final class GuiUtil {
         int width = font.width(label) + 6;
         int x = contentX + contentW - width;
         int y = headerY + font.lineHeight + 4;
-        g.pose().pushPose();
-        g.pose().translate(0, 0, 200);
+        Transforms.push(g);
+        Transforms.translateAboveItemModel(g, 0, 0);
         g.fill(x, y, x + width, y + font.lineHeight + 4, 0xEE202020);
         g.drawString(font, label, x + 3, y + 2, 0xFFFFFFFF, false);
-        g.pose().popPose();
+        Transforms.pop(g);
     }
 
     //  贴图
@@ -125,10 +124,15 @@ public final class GuiUtil {
                                    int x, int y, int w, int h,
                                    float u, float v, int srcW, int srcH,
                                    int texW, int texH) {
-        RenderSystem.enableBlend();
-        RenderSystem.defaultBlendFunc();
-        g.blit(tex, x, y, w, h, u, v, srcW, srcH, texW, texH);
-        RenderSystem.disableBlend();
+        drawTexture(g, tex, x, y, w, h, u, v, srcW, srcH, texW, texH, -1);
+    }
+
+    /** 与上面相同，额外带一个 ARGB 调制色；{@code -1} 表示不染色。 */
+    public static void drawTexture(GuiGraphics g, ResourceLocation tex,
+                                   int x, int y, int w, int h,
+                                   float u, float v, int srcW, int srcH,
+                                   int texW, int texH, int color) {
+        Draw.blitTexture(g, tex, x, y, w, h, u, v, srcW, srcH, texW, texH, color);
     }
 
     /**
@@ -142,9 +146,15 @@ public final class GuiUtil {
      */
     public static void drawNineSlice(GuiGraphics g, ResourceLocation tex,
                                      int x, int y, int w, int h, int texW, int texH, int border) {
+        drawNineSlice(g, tex, x, y, w, h, texW, texH, border, -1);
+    }
+
+    public static void drawNineSlice(GuiGraphics g, ResourceLocation tex,
+                                     int x, int y, int w, int h, int texW, int texH,
+                                     int border, int color) {
         if (w <= 0 || h <= 0) return;
         if (border <= 0 || border > (Math.min(texW, texH) - 1) / 2) {
-            drawTexture(g, tex, x, y, w, h, texW, texH);
+            drawTexture(g, tex, x, y, w, h, 0, 0, texW, texH, texW, texH, color);
             return;
         }
         int bx = Math.min(border, w / 2);
@@ -159,7 +169,8 @@ public final class GuiUtil {
                 int dh = dy[row + 1] - dy[row];
                 if (dw > 0 && dh > 0) {
                     drawTexture(g, tex, dx[col], dy[row], dw, dh,
-                            sx[col], sy[row], sx[col + 1] - sx[col], sy[row + 1] - sy[row], texW, texH);
+                            sx[col], sy[row], sx[col + 1] - sx[col], sy[row + 1] - sy[row],
+                            texW, texH, color);
                 }
             }
         }
@@ -181,9 +192,15 @@ public final class GuiUtil {
     public static void drawNineSliceScaled(GuiGraphics g, ResourceLocation tex,
                                            int x, int y, int w, int h, int texW, int texH,
                                            int designW, int designH, int corner) {
+        drawNineSliceScaled(g, tex, x, y, w, h, texW, texH, designW, designH, corner, -1);
+    }
+
+    public static void drawNineSliceScaled(GuiGraphics g, ResourceLocation tex,
+                                           int x, int y, int w, int h, int texW, int texH,
+                                           int designW, int designH, int corner, int color) {
         if (w <= 0 || h <= 0) return;
         if (corner <= 0 || designW <= 0 || designH <= 0) {
-            drawTexture(g, tex, x, y, w, h, texW, texH);
+            drawTexture(g, tex, x, y, w, h, 0, 0, texW, texH, texW, texH, color);
             return;
         }
 
@@ -191,7 +208,7 @@ public final class GuiUtil {
         int sbx = Math.max(1, Math.round((float) corner * texW / designW));
         int sby = Math.max(1, Math.round((float) corner * texH / designH));
         if (sbx > (texW - 1) / 2 || sby > (texH - 1) / 2) {
-            drawTexture(g, tex, x, y, w, h, texW, texH);
+            drawTexture(g, tex, x, y, w, h, 0, 0, texW, texH, texW, texH, color);
             return;
         }
 
@@ -208,7 +225,8 @@ public final class GuiUtil {
                 int dh = dy[row + 1] - dy[row];
                 if (dw > 0 && dh > 0) {
                     drawTexture(g, tex, dx[col], dy[row], dw, dh,
-                            sx[col], sy[row], sx[col + 1] - sx[col], sy[row + 1] - sy[row], texW, texH);
+                            sx[col], sy[row], sx[col + 1] - sx[col], sy[row + 1] - sy[row],
+                            texW, texH, color);
                 }
             }
         }
@@ -355,18 +373,7 @@ public final class GuiUtil {
      * @return true 表示可以直接交给 {@code g.renderItem}
      */
     public static boolean canDrawItemIcon(ItemStack stack) {
-        if (stack == null || stack.isEmpty()) return false;
-
-        Minecraft mc = Minecraft.getInstance();
-        if (mc == null) return false;
-
-        try {
-            return com.november.mcphone.platform.client.Draw.canDrawItemIcon(stack);
-        } catch (Throwable t) {
-            // 取模型这一步就抛了的物品，更不该让它去画。兜 Throwable 不是 Exception：
-            // 模组的模型代码抛 NoClassDefFoundError / AbstractMethodError 都见过
-            return false;
-        }
+        return stack != null && !stack.isEmpty();
     }
 
     /**
@@ -382,7 +389,7 @@ public final class GuiUtil {
         Transforms.push(g);
         Transforms.translate(g, x, y);
         if (size != 16) Transforms.scale(g, size / 16f, size / 16f);
-        g.renderItem(stack, 0, 0);
+        Draw.renderItem(g, stack, 0, 0);
         Transforms.pop(g);
         return true;
     }

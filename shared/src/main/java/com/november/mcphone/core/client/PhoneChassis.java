@@ -2,6 +2,7 @@ package com.november.mcphone.core.client;
 
 import com.november.mcphone.core.net.NetworkHandler;
 import com.november.mcphone.feature.settings.client.WallpaperStore;
+import com.november.mcphone.platform.client.Transforms;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.world.inventory.Slot;
@@ -189,11 +190,11 @@ public final class PhoneChassis {
 
         String time = LocalTime.now().format(TIME_FORMATTER);
         int timeY = phoneTop + Math.round((PhoneTheme.STATUS_BAR_HEIGHT - font.lineHeight * STATUS_TIME_SCALE) / 2);
-        g.pose().pushPose();
-        g.pose().translate(phoneLeft + STATUS_INSET, timeY, 0);
-        g.pose().scale(STATUS_TIME_SCALE, STATUS_TIME_SCALE, 1.0F);
+        Transforms.push(g);
+        Transforms.translate(g, phoneLeft + STATUS_INSET, timeY);
+        Transforms.scale(g, STATUS_TIME_SCALE, STATUS_TIME_SCALE);
         g.drawString(font, time, 0, 0, PhoneTheme.FONT_COLOR_STATUS, true);
-        g.pose().popPose();
+        Transforms.pop(g);
 
         int bx = phoneLeft + metrics.screenW() - STATUS_INSET - BATTERY_SIZE;
         int sx = bx - STATUS_ICON_GAP - SIGNAL_SIZE;
@@ -215,14 +216,14 @@ public final class PhoneChassis {
     private static void drawFullSignalFallback(GuiGraphics g, int x, int y) {
         // 兜底图形按 12px 设计，与贴图一样缩到当前信号尺寸。
         float scale = SIGNAL_SIZE / 12.0F;
-        g.pose().pushPose();
-        g.pose().translate(x, y, 0);
-        g.pose().scale(scale, scale, 1.0F);
+        Transforms.push(g);
+        Transforms.translate(g, x, y);
+        Transforms.scale(g, scale, scale);
         for (int bar = 0; bar < 3; bar++) {
             int left = 1 + bar * 3;
             g.fill(left, 8 - bar * 3, left + 2, 10, PhoneTheme.FONT_COLOR_STATUS);
         }
-        g.pose().popPose();
+        Transforms.pop(g);
     }
 
     /** 缺图时画同样的白色满电轮廓与三格电量；手机无需充电，始终使用这一种状态。 */
@@ -325,10 +326,7 @@ public final class PhoneChassis {
             // 悬停时整张贴图按倍数提亮。贴图改不了颜色，只能这么亮——
             // 用倍数而不是换成白色：资源包画的是什么颜色，亮起来还是那个颜色。
             // 设了就必须还原，否则后面画的东西跟着变亮
-            if (isHovered) {
-                float b = PhoneTheme.SKIN_HOVER_BRIGHTNESS;
-                g.setColor(b, b, b, 1f);
-            }
+            int tint = isHovered ? PhoneSkin.tint(PhoneTheme.SKIN_HOVER_BRIGHTNESS) : -1;
             // 按键图标可换肤；没有贴图就画原来的字符符号。
             //
             // 图标按它自己的【设计尺寸 40×14】画、在这一格里居中，而不是撑满整格：手机上
@@ -340,8 +338,7 @@ public final class PhoneChassis {
             int iconH = metrics.navThickness();
             int iconX = cx + (cw - iconW) / 2;
             int iconY = cy + (ch - iconH) / 2;
-            boolean drawn = PhoneSkin.draw(g, NAV_ICONS[i], iconX, iconY, iconW, iconH);
-            if (isHovered) g.setColor(1f, 1f, 1f, 1f);
+            boolean drawn = PhoneSkin.draw(g, NAV_ICONS[i], iconX, iconY, iconW, iconH, tint);
 
             if (!drawn) {
                 int bw = font.width(NAV_GLYPHS[i]);

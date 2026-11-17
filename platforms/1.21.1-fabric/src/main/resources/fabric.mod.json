@@ -5,7 +5,7 @@
   "name": "MCphone",
   "description": "把一部能用的智能手机塞进 Minecraft —— 拍照、翻相册、换壁纸、听歌、装 App，还能给自己那一部手机起个名。App 系统通过 SPI 开放，附属模组无需被本模组感知即可注册自己的 App。\n\nA working smartphone in Minecraft: camera, gallery, custom wallpapers, a music player, and an open SPI-based app system that add-on mods can plug into.",
   "authors": [
-    "november521"
+    "${mod_authors}"
   ],
   "contact": {
     "homepage": "https://github.com/november521/mcphone",

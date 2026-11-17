@@ -4,12 +4,6 @@ import com.november.mcphone.platform.client.Draw;
 import com.november.mcphone.platform.client.EditBoxes;
 import com.november.mcphone.platform.client.KeyModifiers;
 import com.november.mcphone.platform.client.Transforms;
-import com.mojang.blaze3d.systems.RenderSystem;
-import com.mojang.blaze3d.vertex.BufferBuilder;
-import com.mojang.blaze3d.vertex.BufferUploader;
-import com.mojang.blaze3d.vertex.DefaultVertexFormat;
-import com.mojang.blaze3d.vertex.Tesselator;
-import com.mojang.blaze3d.vertex.VertexFormat;
 import com.november.mcphone.core.client.FontPalette;
 import com.november.mcphone.core.client.PhoneSkin;
 import com.november.mcphone.core.client.PhoneTheme;
@@ -49,8 +43,8 @@ public final class BrowserScreen extends PhoneScreenBase {
 
     private static final float NAV_GLYPH_SCALE = 1.6f;
 
-    /** 点不动时贴图压到多透明。字符那一档是换成灰色，贴图只能这么表达 */
-    private static final float DISABLED_ALPHA = 0.35f;
+    /** 点不动时贴图压到约 35% 不透明度。字符那一档是换成灰色，贴图只能这么表达 */
+    private static final int DISABLED_TINT = 0x59FFFFFF;
 
     // 修饰键掩码用 GLFW 那一套，不是 AWT 的：MCEF 把它原样塞进 Cef 事件并按 GLFW 值判断，
     // 混用不报错，只会让快捷键永远不触发
@@ -217,14 +211,10 @@ public final class BrowserScreen extends PhoneScreenBase {
     }
 
     /**
-     * 把浏览器那张纹理贴到视口上。全类唯一版本相关的方法（BufferBuilder 写法随 MC 版本变），移植时改这里就够。
-     * 用矩阵重载而不是裸坐标：GuiGraphics 的位姿此刻未必是单位阵。
+     * 把浏览器那张纹理贴到视口上。具体提交方式由后端负责，界面只给位置与尺寸。
      */
     private void drawBrowser(GuiGraphics g) {
-        int texture = browser.textureId();
-        if (texture <= 0) return;
-
-        Draw.browserFrame(g,texture,viewX,viewY,viewW,viewH);
+        browser.render(g, viewX, viewY, viewW, viewH);
     }
 
     /** 顶部那一条：后退、前进、刷新，加地址栏 */
@@ -270,9 +260,8 @@ public final class BrowserScreen extends PhoneScreenBase {
 
         if (hovered) g.fill(x, y, x + NAV_BTN_W, y + h, PhoneTheme.COLOR_APP_PRESSED);
 
-        if (!enabled) g.setColor(1.0F, 1.0F, 1.0F, DISABLED_ALPHA);
-        boolean drawn = PhoneSkin.draw(g, element, x, y, NAV_BTN_W, h);
-        if (!enabled) g.setColor(1.0F, 1.0F, 1.0F, 1.0F);
+        boolean drawn = PhoneSkin.draw(g, element, x, y, NAV_BTN_W, h,
+                enabled ? -1 : DISABLED_TINT);
         if (drawn) return;
 
         int color = !enabled ? PhoneTheme.COLOR_BUTTON_DISABLED

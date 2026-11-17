@@ -10,6 +10,9 @@ import com.november.mcphone.core.PhoneItem;
 import com.november.mcphone.core.PhoneItemData;
 import com.november.mcphone.core.PhoneLocation;
 import com.november.mcphone.platform.client.Draw;
+import com.november.mcphone.platform.client.KeyModifiers;
+import com.november.mcphone.platform.client.Screens;
+import com.november.mcphone.platform.client.Transforms;
 import com.november.mcphone.feature.chat.client.ChatAddContact;
 import com.november.mcphone.feature.chat.client.ChatConversation;
 import com.november.mcphone.feature.chat.client.ChatAttachment;
@@ -55,9 +58,9 @@ import com.november.mcphone.feature.weather.client.WeatherPage;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import com.november.mcphone.platform.client.PhoneScreenBase;
-import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.player.Player;
+import com.mojang.blaze3d.platform.InputConstants;
 
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -570,7 +573,8 @@ public final class PhoneScreen extends PhoneScreenBase {
     }
 
     private boolean addonInteractive() {
-        return !changelogPopup && minecraft != null && minecraft.screen == this && minecraft.isWindowActive();
+        return !changelogPopup && minecraft != null
+                && Screens.current(minecraft) == this && minecraft.isWindowActive();
     }
 
     private void openAddonPage(IPhonePage page) {
@@ -907,7 +911,7 @@ public final class PhoneScreen extends PhoneScreenBase {
     private void checkChangelog() {
         // 在接收输入前决定是否显示，避免动画期间已按下的拖动被弹窗截断。
         // 被动 HUD 的 init/render 不算玩家打开手机。
-        if (!changelogChecked && Minecraft.getInstance().screen == this) {
+        if (!changelogChecked && Screens.current(Minecraft.getInstance()) == this) {
             changelogChecked = true;
             changelogRecord = ChangelogClient.pendingRecord();
             if (changelogRecord != null) {
@@ -942,10 +946,10 @@ public final class PhoneScreen extends PhoneScreenBase {
         int cx = phoneLeft + metrics.screenW() / 2;
         int cy = phoneTop + metrics.screenH() / 2;
 
-        g.pose().pushPose();
-        g.pose().translate(cx, cy, 0);
-        g.pose().scale(scale, scale, 1.0f);
-        g.pose().translate(-cx, -cy, 0);
+        Transforms.push(g);
+        Transforms.translate(g, cx, cy);
+        Transforms.scale(g, scale, scale);
+        Transforms.translate(g, -cx, -cy);
 
         renderScreenBackground(g);
         renderStatusBar(g);
@@ -1066,7 +1070,7 @@ public final class PhoneScreen extends PhoneScreenBase {
         // 外壳圈的是【整块屏幕】，不是页面能用的那块，所以这里也不能用上面的 sw
         PhoneChassis.drawFrame(g, phoneLeft, phoneTop, metrics.screenW(), sh, metrics);
 
-        g.pose().popPose();
+        Transforms.pop(g);
 
     }
 
@@ -1243,7 +1247,8 @@ public final class PhoneScreen extends PhoneScreenBase {
     }
 
     @Override
-    public boolean mouseClicked(double rawX, double rawY, int button) {
+    public boolean mouseClicked(double rawX, double rawY, int nativeButton) {
+        final int button = PhoneScreenBase.pageButton(nativeButton);
         if (changelogPopup) {
             if (changelogDialog.mouseClicked(unscaledX(rawX), unscaledY(rawY), button)) changelogPopup = false;
             return true;
@@ -1251,7 +1256,7 @@ public final class PhoneScreen extends PhoneScreenBase {
         // 绑键界面等着的话这一下归它。正常情况下轮不到这里——AppHotkeyHandler 在
         // 更早的地方就收走并取消了事件；留着是兜底：万一哪个模组把那条事件截了，
         // 屏幕这条路还在。两条都试过之后仍然绑不上，那就说明这一下压根没进游戏
-        if (captureHotkeyMouse(button)) return true;
+        if (captureHotkeyMouse(nativeButton)) return true;
 
         // 菜单打开时先接管所有点击，点机身外或导航栏也只关闭菜单，不穿透。
         if (mode == Mode.CHAT && dispatchChatHomeMenu(chatList, unscaledX(rawX), unscaledY(rawY), button, this::navigateTo))
@@ -1267,9 +1272,9 @@ public final class PhoneScreen extends PhoneScreenBase {
                 leaveFailedAddon();
                 return true;
             }
-            return super.mouseClicked(rawX, rawY, button);
+            return super.mouseClicked(rawX, rawY, nativeButton);
         }
-        if (button != 0) return super.mouseClicked(rawX, rawY, button);
+        if (button != 0) return super.mouseClicked(rawX, rawY, nativeButton);
 
         // 全屏读书这一帧没有机身，也就没有"点机身外＝关机"这回事；坐标也不必换算
         // （那一层 pose 缩放没有加上去）。必须排在下面 isInsidePhone 那一句之前
@@ -1566,7 +1571,8 @@ public final class PhoneScreen extends PhoneScreenBase {
     }
 
     @Override
-    public boolean mouseDragged(double rawX, double rawY, int button, double dx, double dy) {
+    public boolean mouseDragged(double rawX, double rawY, int nativeButton, double dx, double dy) {
+        final int button = PhoneScreenBase.pageButton(nativeButton);
         if (changelogPopup) return true;
         if (mode == Mode.CHAT && chatList.hasContextMenu()) return true;
         // 系统的机身拖动优先于附属内容拖动。
@@ -1601,12 +1607,13 @@ public final class PhoneScreen extends PhoneScreenBase {
 
         // 多行输入框靠拖动选中文本，不转发的话选不了
         if (mode == Mode.NOTE_EDIT && noteEditor.mouseDragged(mx, my, button, ldx, ldy)) return true;
-        return super.mouseDragged(rawX, rawY, button, dx, dy);
+        return super.mouseDragged(rawX, rawY, nativeButton, dx, dy);
     }
 
     /** 松手才定性：主屏上这一下算"点开"还是"挪位置" */
     @Override
-    public boolean mouseReleased(double rawX, double rawY, int button) {
+    public boolean mouseReleased(double rawX, double rawY, int nativeButton) {
+        final int button = PhoneScreenBase.pageButton(nativeButton);
         if (changelogPopup) return true;
         if (mode == Mode.CHAT && chatList.hasContextMenu()) return true;
         if (hudDragging) {
@@ -1641,7 +1648,7 @@ public final class PhoneScreen extends PhoneScreenBase {
             if (book != null) BookSources.open(book);
             return true;
         }
-        return super.mouseReleased(rawX, rawY, button);
+        return super.mouseReleased(rawX, rawY, nativeButton);
     }
 
     @Override
@@ -1668,9 +1675,8 @@ public final class PhoneScreen extends PhoneScreenBase {
         // 跟着变小，光标很容易在半途落到手机外面，若还要求"必须停在某块区域上"，
         // 一次连续的缩小会滚到一半突然不动了。
         //
-        // Ctrl 用原版的 hasControlDown()：它在 macOS 上认的是 Command，与本模组别处
-        // 对修饰键的约定一致（见 ClientConfig 里 appHotkeys 那段注释）。
-        if (scrollY != 0 && hudMode && hasControlDown()) {
+        // 26.x 把 Ctrl 查询搬到 Minecraft 实例上；KeyModifiers 保留 macOS 的 Command 语义。
+        if (scrollY != 0 && hudMode && KeyModifiers.ctrl()) {
             PhoneHudPlacement.setPercent(PhoneHudPlacement.percent()
                     + (scrollY > 0 ? PhoneHudPlacement.STEP_PERCENT
                                    : -PhoneHudPlacement.STEP_PERCENT));
@@ -1721,7 +1727,7 @@ public final class PhoneScreen extends PhoneScreenBase {
     @Override
     public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
         if (changelogPopup) {
-            if (keyCode == 256) changelogPopup = false;
+            if (keyCode == InputConstants.KEY_ESCAPE) changelogPopup = false;
             return true;
         }
         if (mode == Mode.ADDON_PAGE) updateAddonContext();
@@ -1732,11 +1738,12 @@ public final class PhoneScreen extends PhoneScreenBase {
             return true;
         }
         if (mode == Mode.CHAT && chatList.hasContextMenu()) {
-            if (keyCode == 256) chatList.dismissContextMenu();
+            if (keyCode == InputConstants.KEY_ESCAPE) chatList.dismissContextMenu();
             return true;
         }
-        if (keyCode == 256 && inConversation() && chatConversation.dismissContextMenu()) return true;
-        if (keyCode == 256) { // ESC
+        if (keyCode == InputConstants.KEY_ESCAPE && inConversation()
+                && chatConversation.dismissContextMenu()) return true;
+        if (keyCode == InputConstants.KEY_ESCAPE) { // ESC
             // ESC 一下直接关机，不退层；退层交给导航栏 ◁
             onClose();
             return true;

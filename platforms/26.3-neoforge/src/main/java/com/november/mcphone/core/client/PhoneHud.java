@@ -358,6 +358,22 @@ public final class PhoneHud {
         return true;
     }
 
+    /** 把正在全屏使用的同一部手机交给 HUD，保留页面、草稿与滚动状态。 */
+    public static void showAsHud(PhoneScreen current) {
+        Minecraft mc = Minecraft.getInstance();
+        if (Screens.current(mc) != current || mc.player == null || mc.level == null
+                || !PhoneItem.isDevice(current.location().resolve(mc.player))) return;
+
+        if (phone != current) dismiss(mc);
+        phone = current;
+        lastAuto = PhoneHudPlacement.enabled()
+                && PhoneItem.isDevice(mc.player.getOffhandItem());
+        manual = Override.SHOW;
+        interacting = false;
+        phone.adoptByHud();
+        mc.setScreenAndShow(null);
+    }
+
     //  交互
 
     private static void startInteracting(Minecraft mc) {
@@ -427,10 +443,8 @@ public final class PhoneHud {
         if (value < 0) return false;
 
         return switch (key.getType()) {
-            case KEYSYM -> InputConstants.isKeyDown(value);
+            case KEYBOARD -> InputConstants.isKeyDown(value);
             case MOUSE -> (SDLMouse.SDL_GetMouseState(null, null) & (1 << (value - 1))) != 0;
-            // SCANCODE：原版按键设置绑不出这一类，真出现了就当没按
-            default -> false;
         };
     }
 
@@ -457,6 +471,6 @@ public final class PhoneHud {
         int w = mc.getWindow().getGuiScaledWidth();
         int h = mc.getWindow().getGuiScaledHeight();
         if (phone.width == w && phone.height == h) return;
-        phone.init(mc, w, h);
+        phone.resize(mc, w, h);
     }
 }

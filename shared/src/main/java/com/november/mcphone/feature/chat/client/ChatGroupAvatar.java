@@ -2,6 +2,7 @@ package com.november.mcphone.feature.chat.client;
 
 import com.november.mcphone.core.client.PlayerAvatar;
 import com.november.mcphone.feature.chat.group.GroupSummary;
+import com.november.mcphone.platform.client.Transforms;
 import net.minecraft.client.gui.GuiGraphics;
 import java.util.List;
 
@@ -32,11 +33,11 @@ final class ChatGroupAvatar {
         var tiles = size == ChatLayout.AVATAR_SIZE ? DEFAULT_TILES.get(room.portraits().size()) : layout(room.portraits().size(), size);
         for (int i = 0; i < tiles.size(); i++) {
             var tile = tiles.get(i);
-            g.pose().pushPose();
+            Transforms.push(g);
             try {
-                g.pose().translate(x + tile.x(), y + tile.y(), 0);
+                Transforms.translate(g, x + tile.x(), y + tile.y());
                 PlayerAvatar.draw(g, room.portraits().get(i), 0, 0, tile.size());
-            } finally { g.pose().popPose(); }
+            } finally { Transforms.pop(g); }
         }
     }
 }

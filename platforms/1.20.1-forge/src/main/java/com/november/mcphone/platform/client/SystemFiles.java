@@ -30,4 +30,9 @@ public final class SystemFiles {
         // 1.20.1 的 Util.OS 上没有 openPath（那是 1.20.2 才加的），只有收 File 的 openFile
         Util.getPlatform().openFile(dir.toFile());
     }
+
+    /** Open a URI with the platform's default handler. */
+    public static void openUri(String uri) {
+        Util.getPlatform().openUri(uri);
+    }
 }
