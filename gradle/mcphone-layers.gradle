@@ -79,9 +79,10 @@ ext.mcphoneDatapackRenames = renamesJson.renames.asImmutable()
 // 为什么这件事不归「层」管：层的准入条件是正文逐字相同，而名字出现在文件内部的
 // 字段、形参、泛型实参、调用点上，那是正文的一部分，两个版本上【不可能】逐字相同。
 // 判据、代价与那五条不变量在 versions/name-renames.json 与 gradle/mcphone-renames.gradle。
-def nameRenamesJson = readTrackedJson('versions/name-renames.json')
+def nameRenamesRel = (ext.find('mcphoneNameRenamesFile') ?: 'versions/name-renames.json').toString()
+def nameRenamesJson = readTrackedJson(nameRenamesRel)
 if (nameRenamesJson.since == null) {
-    throw new GradleException("versions/name-renames.json 缺 since：没有它判不了这个目标该不该改名。")
+    throw new GradleException("${nameRenamesRel} 缺 since：没有它判不了这个目标该不该改名。")
 }
 // 三张表【可以都空】（那表示这张机制还没启用），但结构必须对 ——
 // 结构错了会静默变成「一条规则都没有」，而那是这张表最坏的失效方式。
@@ -91,15 +92,15 @@ def nameRules = [:]
     if (part == null) { nameRules[axis] = [:]; return }
     if (!(part instanceof Map)) {
         throw new GradleException(
-                "versions/name-renames.json 里的 ${axis} 不是对象 —— 取不到这一族规则，" +
+                "${nameRenamesRel} 里的 ${axis} 不是对象 —— 取不到这一族规则，" +
                 "这一支就会【悄悄退回不改名】，错误照旧一堆而没人说话。")
     }
     part.each { oldName, newName ->
         if (!oldName?.trim() || !newName?.trim()) {
-            throw new GradleException("versions/name-renames.json 的 ${axis} 里有一条空规则：\"${oldName}\" → \"${newName}\"")
+            throw new GradleException("${nameRenamesRel} 的 ${axis} 里有一条空规则：\"${oldName}\" → \"${newName}\"")
         }
         if (oldName == newName) {
-            throw new GradleException("versions/name-renames.json 的 ${axis} 里有一条自己改成自己的规则：\"${oldName}\"")
+            throw new GradleException("${nameRenamesRel} 的 ${axis} 里有一条自己改成自己的规则：\"${oldName}\"")
         }
     }
     nameRules[axis] = part.asImmutable()

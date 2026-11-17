@@ -1,5 +1,6 @@
 package com.november.mcphone.feature.chat.client;
 
+import com.mojang.blaze3d.platform.InputConstants;
 import com.november.mcphone.core.ServerConfig;
 import com.november.mcphone.core.client.FontPalette;
 import com.november.mcphone.core.client.GuiUtil;
@@ -7,6 +8,8 @@ import com.november.mcphone.core.client.PhoneSkin;
 import com.november.mcphone.core.client.PhoneTheme;
 import com.november.mcphone.feature.chat.TextBody;
 import com.november.mcphone.feature.chat.client.contextmenu.ChatContextMenuView;
+import com.november.mcphone.platform.client.EditBoxes;
+import com.november.mcphone.platform.client.Transforms;
 import java.util.function.Supplier;
 
 import net.minecraft.client.gui.Font;
@@ -117,7 +120,7 @@ final class ChatComposer {
         if (box == null) return;
         boolean inInput = inputBounds.contains(mx, my);
         setFocused(inInput);
-        if (inInput) box.mouseClicked((mx - inputOriginX) / ChatLayout.TEXT_SCALE,
+        if (inInput) EditBoxes.click(box, (mx - inputOriginX) / ChatLayout.TEXT_SCALE,
                 Mth.clamp((my - inputOriginY) / ChatLayout.TEXT_SCALE, 0, box.getHeight() - 1), button);
     }
 
@@ -131,10 +134,15 @@ final class ChatComposer {
 
     boolean keyPressed(int keyCode, int scanCode, int modifiers) {
         if (!inputFocused) return false;
-        if (keyCode == 257 || keyCode == 335) { send(); return true; }
-        return box != null && box.keyPressed(keyCode, scanCode, modifiers);
+        if (keyCode == InputConstants.KEY_RETURN || keyCode == InputConstants.KEY_NUMPADENTER) {
+            send();
+            return true;
+        }
+        return box != null && EditBoxes.key(box, keyCode, scanCode, modifiers);
     }
-    boolean charTyped(char c, int modifiers) { return inputFocused && box != null && box.charTyped(c, modifiers); }
+    boolean charTyped(char c, int modifiers) {
+        return inputFocused && box != null && EditBoxes.character(box, c, modifiers);
+    }
     private void send() {
         if (box == null || !ChatLayout.hasText(box.getValue()) || !sendGuard.getAsBoolean()) return;
         onSend.accept(box.getValue());
@@ -189,12 +197,15 @@ final class ChatComposer {
         box.setTextColorUneditable(inputColor);
         // 控件保持原字体坐标，渲染与鼠标同时反向换算。光标、选择高亮和长文本滚动仍由 EditBox 管。
         GuiUtil.enableScissor(g, barX, y, barX + boxW, y + INPUT_H);
-        g.pose().pushPose();
-        g.pose().translate(inputOriginX, inputOriginY, 0);
-        g.pose().scale(ChatLayout.TEXT_SCALE, ChatLayout.TEXT_SCALE, 1f);
-        box.render(g, (int) ((mouseX - inputOriginX) / ChatLayout.TEXT_SCALE),
-                (int) ((mouseY - inputOriginY) / ChatLayout.TEXT_SCALE), partialTick);
-        g.pose().popPose();
+        Transforms.push(g);
+        try {
+            Transforms.translate(g, inputOriginX, inputOriginY);
+            Transforms.scale(g, ChatLayout.TEXT_SCALE, ChatLayout.TEXT_SCALE);
+            EditBoxes.render(box, g, (int) ((mouseX - inputOriginX) / ChatLayout.TEXT_SCALE),
+                    (int) ((mouseY - inputOriginY) / ChatLayout.TEXT_SCALE), partialTick);
+        } finally {
+            Transforms.pop(g);
+        }
         GuiUtil.disableScissor(g);
 
         int actionX = x + layout.actionX();

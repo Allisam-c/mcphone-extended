@@ -1,6 +1,8 @@
 package com.november.mcphone.platform.client;
 
+import com.november.mcphone.platform.client.port.PhoneGraphics;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.components.PlayerFaceExtractor;
 import net.minecraft.client.multiplayer.PlayerInfo;
 import net.minecraft.client.resources.DefaultPlayerSkin;
 import net.minecraft.resources.Identifier;
@@ -40,5 +42,10 @@ public final class PlayerSkins {
             if (info != null) return info.getSkin().body().texturePath();
         }
         return DefaultPlayerSkin.get(player).body().texturePath();
+    }
+
+    public static void drawFace(PhoneGraphics g, UUID player, int x, int y, int size) {
+        PlayerFaceExtractor.extractRenderState(
+                g.nativeGraphics(), faceTexture(player), x, y, size, true, false, -1);
     }
 }

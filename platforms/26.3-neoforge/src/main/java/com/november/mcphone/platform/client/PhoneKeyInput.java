@@ -2,16 +2,17 @@ package com.november.mcphone.platform.client;
 
 import com.mojang.blaze3d.platform.InputConstants;
 import net.minecraft.client.KeyMapping;
+import net.minecraft.client.input.KeyEvent;
 
-/** 键码与扫描码的版本接缝。 */
+/** Keeps the shared key-code calls on the 26.3 event shape. */
 public final class PhoneKeyInput {
     private PhoneKeyInput() {}
 
-    public static InputConstants.Key key(int code, int scan) {
-        return KeyModifiers.fromKeyCodes(code, scan);
+    public static InputConstants.Key key(int physicalKey, int virtualKey) {
+        return InputConstants.getKey(new KeyEvent(physicalKey, virtualKey, 0));
     }
 
-    public static boolean matches(KeyMapping key, int code, int scan) {
-        return KeyModifiers.matches(key, code, scan);
+    public static boolean matches(KeyMapping mapping, int physicalKey, int virtualKey) {
+        return mapping.matches(new KeyEvent(physicalKey, virtualKey, 0));
     }
 }

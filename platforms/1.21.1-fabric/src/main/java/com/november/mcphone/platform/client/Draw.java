@@ -90,6 +90,31 @@ public final class Draw {
         return !g.containsPointInScissor(0, 0);
     }
 
+    /** 旧目标用一次全局 setColor 包住 blit；调用方只需要给出颜色。 */
+    public static void blitTexture(GuiGraphics g, ResourceLocation tex,
+                                   int x, int y, int w, int h,
+                                   float u, float v, int srcW, int srcH,
+                                   int texW, int texH, int color) {
+        boolean tinted = color != -1;
+        if (tinted) {
+            g.setColor(((color >>> 16) & 255) / 255f, ((color >>> 8) & 255) / 255f,
+                    (color & 255) / 255f, ((color >>> 24) & 255) / 255f);
+        }
+        com.mojang.blaze3d.systems.RenderSystem.enableBlend();
+        com.mojang.blaze3d.systems.RenderSystem.defaultBlendFunc();
+        try {
+            g.blit(tex, x, y, w, h, u, v, srcW, srcH, texW, texH);
+        } finally {
+            com.mojang.blaze3d.systems.RenderSystem.disableBlend();
+            if (tinted) g.setColor(1f, 1f, 1f, 1f);
+        }
+    }
+
+    /** 旧目标仍叫 renderItem。 */
+    public static void renderItem(GuiGraphics g, net.minecraft.world.item.ItemStack stack, int x, int y) {
+        g.renderItem(stack, x, y);
+    }
+
     /** 浏览器纹理由本版本负责提交，共用页面不操作全局 GL 状态。 */
     public static void browserFrame(GuiGraphics g,int texture,int x,int y,int w,int h) {
         com.mojang.blaze3d.systems.RenderSystem.disableDepthTest();

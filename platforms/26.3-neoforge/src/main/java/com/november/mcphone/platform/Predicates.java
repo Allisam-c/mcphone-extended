@@ -16,9 +16,11 @@ import net.minecraft.world.level.storage.loot.predicates.LootItemCondition;
 
 import java.util.Optional;
 
-/** 数据包谓词的查询与判定。 */
+/** Data-pack predicate lookup and evaluation for 26.3. */
 public final class Predicates {
-    private Predicates() {}
+
+    private Predicates() {
+    }
 
     public static boolean exists(ServerPlayer player, Identifier id) {
         return condition(player, id) != null;
@@ -37,15 +39,17 @@ public final class Predicates {
                     .create(Optional.empty());
             return condition.test(context);
         } catch (RuntimeException e) {
-            MCphone.LOGGER.warn("[MCphone] 谓词判定失败（按判否处理）：{} —— {}", id, e.toString());
+            MCphone.LOGGER.warn("[MCphone] predicate evaluation failed (treated as false): {} - {}",
+                    id, e.toString());
             return Boolean.FALSE;
         }
     }
 
     private static LootItemCondition condition(ServerPlayer player, Identifier id) {
-        var access = player.level().getServer().reloadableRegistries().lookup();
-        return access.lookupOrThrow(Registries.PREDICATE)
-                .get(ResourceKey.create(Registries.PREDICATE, id))
+        ResourceKey<LootItemCondition> key = ResourceKey.create(Registries.PREDICATE, id);
+        return player.level().getServer().reloadableRegistries().lookup()
+                .lookup(Registries.PREDICATE)
+                .flatMap(registry -> registry.get(key))
                 .map(Holder::value)
                 .orElse(null);
     }

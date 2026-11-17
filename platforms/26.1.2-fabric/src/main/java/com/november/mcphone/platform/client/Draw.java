@@ -44,6 +44,18 @@ public final class Draw {
                 srcW, srcH, texW, texH, ARGB.color(alpha, 255, 255, 255));
     }
 
+    public static void blitTexture(PhoneGraphics g, Identifier tex,
+                                   int x, int y, int w, int h,
+                                   float u, float v, int srcW, int srcH,
+                                   int texW, int texH, int color) {
+        g.nativeGraphics().blit(RenderPipelines.GUI_TEXTURED, tex, x, y, u, v, w, h,
+                srcW, srcH, texW, texH, color);
+    }
+
+    public static void renderItem(PhoneGraphics g, ItemStack stack, int x, int y) {
+        g.renderItem(stack, x, y);
+    }
+
     public static boolean canDrawItemIcon(ItemStack stack) {
         var mc = Minecraft.getInstance();
         var state = new ItemStackRenderState();

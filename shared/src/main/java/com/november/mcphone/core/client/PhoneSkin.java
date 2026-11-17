@@ -2,7 +2,7 @@ package com.november.mcphone.core.client;
 
 import com.google.gson.JsonObject;
 import com.november.mcphone.MCphone;
-import com.november.mcphone.platform.client.Draw;
+import com.november.mcphone.platform.client.Transforms;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.resources.ResourceLocation;
@@ -314,50 +314,35 @@ public final class PhoneSkin {
 
     /** 画贴图，拉伸到目标区域。真的画了才 true；没有贴图返回 false，调用方自行兜底 */
     public static boolean draw(GuiGraphics g, Element element, int x, int y, int w, int h) {
+        return draw(g, element, x, y, w, h, -1);
+    }
+
+    /** 同上，带一个 ARGB 调制色；{@code -1} 表示保持原色。 */
+    public static boolean draw(GuiGraphics g, Element element, int x, int y, int w, int h, int color) {
         if (w <= 0 || h <= 0) return false;
 
         SkinTexture tex = resolve(element).orElse(null);
         if (tex == null) return false;
 
-        drawTexture(g, tex, x, y, w, h);
+        drawTexture(g, tex, x, y, w, h, color);
         return true;
     }
 
-    public static boolean draw(GuiGraphics g, Element element, int x, int y, int w, int h,
-                               float alpha) {
-        g.setColor(1, 1, 1, alpha);
-        try {
-            return draw(g, element, x, y, w, h);
-        } finally {
-            g.setColor(1, 1, 1, 1);
-        }
-    }
-
-    public static boolean drawHighlight(GuiGraphics g, Element element,
-                                        int x, int y, int w, int h) {
-        if (w <= 0 || h <= 0) return false;
-        SkinTexture tex = resolve(element).orElse(null);
-        if (tex == null) return false;
-        Draw.highlighted(g, tex.location(), x, y, w, h, 0, 0,
-                tex.width(), tex.height(), tex.width(), tex.height(),
-                PhoneTheme.SKIN_HOVER_BRIGHTNESS);
-        return true;
-    }
-
-    private static void drawTexture(GuiGraphics g, SkinTexture tex, int x, int y, int w, int h) {
+    private static void drawTexture(GuiGraphics g, SkinTexture tex, int x, int y, int w, int h, int color) {
         // 八倍源图在八倍坐标绘制后缩回；九宫格边角因此仍是逻辑尺寸，不会跟长消息被拉大。
-        g.pose().pushPose();
+        Transforms.push(g);
         try {
-            g.pose().translate(x, y, 0);
-            g.pose().scale(1f / tex.scale(), 1f / tex.scale(), 1f);
+            Transforms.translate(g, x, y);
+            Transforms.scale(g, 1f / tex.scale(), 1f / tex.scale());
             if (tex.border() > 0) {
                 GuiUtil.drawNineSlice(g, tex.location(), 0, 0, w * tex.scale(), h * tex.scale(),
-                        tex.width(), tex.height(), tex.border());
+                        tex.width(), tex.height(), tex.border(), color);
             } else {
-                GuiUtil.drawTexture(g, tex.location(), 0, 0, w * tex.scale(), h * tex.scale(), tex.width(), tex.height());
+                GuiUtil.drawTexture(g, tex.location(), 0, 0, w * tex.scale(), h * tex.scale(),
+                        0, 0, tex.width(), tex.height(), tex.width(), tex.height(), color);
             }
         } finally {
-            g.pose().popPose();
+            Transforms.pop(g);
         }
     }
 
@@ -407,7 +392,7 @@ public final class PhoneSkin {
         // 贴图自己声明了 border 就照它来 —— 那是【源图像素】，与聊天气泡那类 1× 贴图
         // 同一套规矩。资源包既然写了元数据，就该是它说了算，行为与从前一字不差
         if (tex.border() > 0) {
-            drawTexture(g, tex, x, y, w, h);
+            drawTexture(g, tex, x, y, w, h, -1);
             return true;
         }
 
@@ -445,15 +430,15 @@ public final class PhoneSkin {
     public static void drawOrFill(GuiGraphics g, Element element,
                                   int x, int y, int w, int h, int fallbackColor,
                                   boolean highlight) {
-        if (highlight) {
-            float b = PhoneTheme.SKIN_HOVER_BRIGHTNESS;
-            g.setColor(b, b, b, 1.0F);
-        }
-        boolean drawn = draw(g, element, x, y, w, h);
-        // 必须在画兜底色之前还原：setColor 会一路乘到后面画的每一样东西上
-        if (highlight) g.setColor(1.0F, 1.0F, 1.0F, 1.0F);
+        int tint = highlight ? tint(PhoneTheme.SKIN_HOVER_BRIGHTNESS) : -1;
+        boolean drawn = draw(g, element, x, y, w, h, tint);
 
         if (!drawn) g.fill(x, y, x + w, y + h, fallbackColor);
+    }
+
+    static int tint(float brightness) {
+        int channel = Math.max(0, Math.min(255, Math.round(brightness * 255f)));
+        return 0xFF000000 | channel << 16 | channel << 8 | channel;
     }
 
     private static Optional<SkinTexture> resolve(Element element) {

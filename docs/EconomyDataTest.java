@@ -935,7 +935,7 @@ public class EconomyDataTest {
         Path mcFile = dir.resolve("mcphone_economy.dat");                 // SavedData 不在
         if (!Files.getFileStore(eco).supportsFileAttributeView(
                 java.nio.file.attribute.PosixFileAttributeView.class)) {
-            System.out.println("（跳过 unreadableIsNotAbsent：这个文件系统没有 POSIX 权限位）");
+            System.out.println("（跳过 unreadableIsNotAbsent：当前文件系统没有 POSIX 权限）");
             return;
         }
         Files.setPosixFilePermissions(eco, java.util.EnumSet.noneOf(java.nio.file.attribute.PosixFilePermission.class));
@@ -2140,7 +2140,7 @@ public class EconomyDataTest {
     }
 
     static net.minecraft.commands.CommandSourceStack source(int level) {
-        return com.november.mcphone.test.CommandPermissions.source(level);
+        return com.november.mcphone.test.CommandSourceStackFactory.create(level);
     }
 
     /** 1000 次合法调用经网关、两条 worker 并发：总额不变，对账平（builtin 档；计分板档要真服，在 S15g）。 */

@@ -6,6 +6,7 @@ import com.november.mcphone.core.client.PhoneTheme;
 import com.november.mcphone.core.client.ImageCodec;
 import com.november.mcphone.feature.chat.ChatImage;
 import com.november.mcphone.feature.gallery.client.PhotoLibrary;
+import com.november.mcphone.platform.client.ClientMessages;
 
 import net.minecraft.Util;
 import net.minecraft.client.Minecraft;
@@ -111,7 +112,7 @@ final class ChatImageViewer {
 
     private static void tell(String key, Object... args) {
         var player = Minecraft.getInstance().player;
-        if (player != null) com.november.mcphone.platform.PlayerAccess.message(player, Component.translatable(key, args), true);
+        if (player != null) ClientMessages.show(player, Component.translatable(key, args), true);
     }
 
     static void drawImage(GuiGraphics g, ImageCodec.Texture sheet, UUID id,

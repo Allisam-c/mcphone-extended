@@ -3,7 +3,6 @@ package com.november.mcphone.feature.store;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import com.november.mcphone.core.net.Wire;
-import com.november.mcphone.platform.PacketIds;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.resources.ResourceLocation;
@@ -44,12 +43,12 @@ public record PurchasedApps(Set<ResourceLocation> ids) {
      * 出来的字节可以不一样 —— 别拿它做缓存键或者哈希比对。
      */
     public static void encode(PurchasedApps value, FriendlyByteBuf buf) {
-        Wire.writeList(buf, value.ids(), MAX_COUNT, (valueId, buffer) -> PacketIds.write(buffer, valueId));
+        Wire.writeList(buf, value.ids(), MAX_COUNT, (v, b) -> b.writeResourceLocation(v));
     }
 
     public static PurchasedApps decode(FriendlyByteBuf buf) {
         List<ResourceLocation> list =
-                Wire.readList(buf, MAX_COUNT, PacketIds::read);
+                Wire.readList(buf, MAX_COUNT, b -> b.readResourceLocation());
         return new PurchasedApps(Set.copyOf(list));
     }
 

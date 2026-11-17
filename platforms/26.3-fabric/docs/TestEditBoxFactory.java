@@ -8,8 +8,7 @@ import java.lang.reflect.Field;
 
 /** 无窗口断言只隔离系统输入法通知，焦点、选区、编辑及输入过滤仍执行真实原版逻辑。 */
 public final class TestEditBoxFactory {
-    private TestEditBoxFactory() {
-    }
+    private TestEditBoxFactory() {}
 
     public static EditBox create(Font font, int x, int y, int width, int height, Component message) {
         return new HeadlessEditBox(font, x, y, width, height, message);
@@ -20,7 +19,7 @@ public final class TestEditBoxFactory {
 
         private static Field editableField() {
             try {
-                Field field = EditBox.class.getSuperclass().getDeclaredField("isEditable");
+                Field field = EditBox.class.getDeclaredField("isEditable");
                 field.setAccessible(true);
                 return field;
             } catch (ReflectiveOperationException error) {
@@ -37,7 +36,7 @@ public final class TestEditBoxFactory {
             try {
                 boolean editable = EDITABLE.getBoolean(this);
                 try {
-                    // 仅在原版焦点方法执行期间关闭输入法通知条件；不改变测试的可编辑状态。
+                    // 26.3 在可编辑控件获得焦点时会通知系统输入法；无窗口测试不碰那个边界。
                     EDITABLE.setBoolean(this, false);
                     super.setFocused(focused);
                 } finally {

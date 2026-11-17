@@ -42,4 +42,12 @@ public final class PlayerAccess {
                                 double x, double y, double z, float yaw, float pitch) {
         player.teleportTo(level, x, y, z, Set.of(), yaw, pitch, true);
     }
+
+    public static String dimensionId(ServerPlayer player) {
+        return player.level().dimension().identifier().toString();
+    }
+
+    public static void drop(Player player, ItemStack stack, boolean dropAround) {
+        player.drop(stack, dropAround);
+    }
 }

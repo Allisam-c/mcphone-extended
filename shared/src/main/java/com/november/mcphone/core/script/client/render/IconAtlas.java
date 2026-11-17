@@ -1,9 +1,7 @@
 package com.november.mcphone.core.script.client.render;
 
-import com.mojang.blaze3d.systems.RenderSystem;
 import com.november.mcphone.MCphone;
 import com.november.mcphone.core.client.GuiUtil;
-import com.november.mcphone.platform.client.Draw;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.resources.ResourceLocation;
 
@@ -36,7 +34,7 @@ public final class IconAtlas {
         }
         int index = NAMES.indexOf(name);
         if (index < 0) index = NAMES.indexOf("info");
-        Draw.tinted(g, texture, x, y, size, size, index * CELL, 0, CELL, CELL,
-                CELL * NAMES.size(), CELL, argb);
+        GuiUtil.drawTexture(g, texture, x, y, size, size,
+                index * CELL, 0, CELL, CELL, CELL * NAMES.size(), CELL, argb);
     }
 }

@@ -1,13 +1,18 @@
 package com.november.mcphone.feature.browser.client;
 
+import net.minecraft.client.gui.GuiGraphics;
+
 /**
  * 一个已经打开的浏览器。方法签名里不许出现 MCEF / JCEF 类型，换后端时只改 {@link McefBackend}。
- * 返回 GL 纹理 id 而不让后端自己画：贴四边形的写法随 MC 版本变，该留在界面层。
+ * 页面绘制由后端负责：GL 纹理 id 与四边形的版本差异都关在 {@link McefBackend} 里。
  */
 public interface IBrowser {
 
     /** 每帧都可能变，每次绘制前重新取，别缓存 */
     int textureId();
+
+    /** 把当前页面画到界面画布上。坐标是 GUI 缩放后的坐标 */
+    void render(GuiGraphics g, int x, int y, int width, int height);
 
     /** 单位是真实像素，不是 GUI 缩放后的坐标，传错画面会糊 */
     void resize(int width, int height);

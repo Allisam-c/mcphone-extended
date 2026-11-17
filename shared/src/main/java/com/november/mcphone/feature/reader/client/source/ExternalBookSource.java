@@ -2,10 +2,9 @@ package com.november.mcphone.feature.reader.client.source;
 
 import com.november.mcphone.MCphone;
 import com.november.mcphone.core.client.GuiUtil;
-import com.november.mcphone.platform.RegistryItems;
 import com.november.mcphone.feature.reader.BookRef;
+import com.november.mcphone.platform.ItemLookup;
 import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
@@ -112,7 +111,7 @@ public final class ExternalBookSource implements BookSource {
         ExternalBook entry = find(book);
         if (entry == null || entry.item() == null) return false;
 
-        Item item = RegistryItems.get(entry.item());
+        Item item = ItemLookup.get(entry.item());
         if (item == Items.AIR) return false;
 
         return GuiUtil.drawItemIcon(g, new ItemStack(item), x, y, size);

@@ -2,6 +2,7 @@ package com.november.mcphone.core.client;
 
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
+import com.november.mcphone.platform.client.Transforms;
 
 /** 主屏与通知共用的小型未读角标；数字按笔画区域而不是含留白的行框居中。 */
 public final class UnreadBadge {
@@ -29,11 +30,11 @@ public final class UnreadBadge {
     public static void label(GuiGraphics g, Font font, String label,
                              float centerX, float centerY, float scale, int color) {
         Ink ink = numericInk(font.width(label), font.lineHeight, scale);
-        g.pose().pushPose();
+        Transforms.push(g);
         try {
-            g.pose().translate(centerX - ink.width() / 2f, centerY - ink.height() / 2f, 0);
-            g.pose().scale(scale, scale, 1f);
+            Transforms.translate(g, centerX - ink.width() / 2f, centerY - ink.height() / 2f);
+            Transforms.scale(g, scale, scale);
             g.drawString(font, label, 0, 0, color, false);
-        } finally { g.pose().popPose(); }
+        } finally { Transforms.pop(g); }
     }
 }

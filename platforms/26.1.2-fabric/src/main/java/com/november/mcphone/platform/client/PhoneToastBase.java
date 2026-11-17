@@ -8,24 +8,25 @@ import net.minecraft.client.gui.components.toasts.ToastManager;
 
 /** 通知生命周期与内容绘制的版本接缝。 */
 public abstract class PhoneToastBase implements Toast {
-    protected abstract Visibility updateVisibility(ToastManager manager, long time);
+    private Visibility wanted = Visibility.SHOW;
 
-    protected abstract void draw(PhoneGraphics g, Font font);
-
-    private Visibility visibility = Visibility.HIDE;
+    @Override
+    public void update(ToastManager manager, long fullyVisibleForMs) {
+        wanted = shouldStillShow(fullyVisibleForMs, manager.getNotificationDisplayTimeMultiplier())
+                ? Visibility.SHOW : Visibility.HIDE;
+    }
 
     @Override
     public Visibility getWantedVisibility() {
-        return visibility;
+        return wanted;
     }
 
     @Override
-    public void update(ToastManager manager, long time) {
-        visibility = updateVisibility(manager, time);
+    public void extractRenderState(GuiGraphicsExtractor g, Font font, long fullyVisibleForMs) {
+        drawToast(new PhoneGraphics(g), font, fullyVisibleForMs);
     }
 
-    @Override
-    public void extractRenderState(GuiGraphicsExtractor g, Font font, long time) {
-        draw(new PhoneGraphics(g), font);
-    }
+    protected abstract void drawToast(PhoneGraphics g, Font font, long timeSinceLastVisible);
+
+    protected abstract boolean shouldStillShow(long timeSinceLastVisible, double displayMultiplier);
 }

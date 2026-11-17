@@ -1,13 +1,13 @@
 package com.november.mcphone.platform.client;
 
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.components.toasts.ToastComponent;
+import net.minecraft.client.gui.components.toasts.ToastManager;
 
-/** 读取通知区管理器；26.1.2 仍由 Minecraft 提供 getter。 */
+/** 26.x exposes the toast manager through Gui instead of Minecraft. */
 public final class Toasts {
     private Toasts() {}
 
-    public static ToastComponent manager(Minecraft mc) {
-        return mc.getToasts();
+    public static ToastManager manager(Minecraft mc) {
+        return mc.getToastManager();
     }
 }

@@ -3,6 +3,7 @@ package com.november.mcphone.feature.chat.client;
 import com.november.mcphone.core.client.FontPalette;
 import com.november.mcphone.core.client.PlayerAvatar;
 import com.november.mcphone.feature.chat.client.favorite.ChatFavorites;
+import com.november.mcphone.platform.client.SystemFiles;
 import java.util.List;
 import java.util.UUID;
 import net.minecraft.client.Minecraft;
@@ -116,10 +117,10 @@ public final class ChatProfile {
             } else switch(ChatProfileUi.Icon.values()[i]) {
                 case FAVORITE -> { favoritesReturn=Page.HOME;favorites.close();change(Page.FAVORITES); }
                 case SETTINGS -> change(Page.SETTINGS);
-                case GITHUB -> com.november.mcphone.platform.client.SystemFiles.openUri(
-                        "https://github.com/Beijingdragon233/mcphone_fabric");
+                case GITHUB -> SystemFiles.openUri("https://github.com/november521/mcphone");
                 case SPONSOR -> { var current=Minecraft.getInstance().player;
-                    if (current!=null) com.november.mcphone.platform.PlayerAccess.message(current,Component.translatable("mcphone.chat.profile.sponsor_pending"),true); }
+                    if (current!=null) com.november.mcphone.platform.client.ClientMessages.show(
+                            current,Component.translatable("mcphone.chat.profile.sponsor_pending"),true); }
             }
             return true;
         }

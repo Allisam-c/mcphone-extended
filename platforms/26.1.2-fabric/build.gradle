@@ -19,6 +19,8 @@ repoPropsFile.withInputStream { repoProps.load(it) }
     ext[key] = repoProps.getProperty(key)
 }
 
+// 26.1.2/26.2 共用 Phone* 适配层；26.3 使用直接绑定 GuiGraphicsExtractor 的表。
+ext.mcphoneNameRenamesFile = 'versions/name-renames-26.2.json'
 apply from: "${projectDir}/../../gradle/mcphone-layers.gradle"
 apply from: "${projectDir}/../../gradle/mcphone-renames.gradle"
 
@@ -69,7 +71,7 @@ mcphoneMountSharedJava(sourceSets.main.java,
         (['shared/src/main/java': new File(repoRoot, 'shared/src/main/java')] +
          mcphoneLayers.collectEntries { layer ->
              [("${layer.relDir}/src/main/java"): layer.javaDir]
-         }), excludedOptionalSources)
+         }), [:], excludedOptionalSources)
 
 sourceSets.main.resources {
     srcDir('../../shared/src/main/resources')

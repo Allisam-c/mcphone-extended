@@ -5,7 +5,6 @@ import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.server.level.ServerPlayer;
 import net.neoforged.neoforge.network.PacketDistributor;
-import net.neoforged.neoforge.client.network.ClientPacketDistributor;
 import net.neoforged.neoforge.network.registration.PayloadRegistrar;
 
 import java.util.function.BiConsumer;
@@ -37,14 +36,13 @@ import java.util.function.Consumer;
  * <h2>两个发包方法的方向是不对称的，别被"门口"这个说法骗了</h2>
  *
  * {@link #sendToServer} <b>只能在客户端调</b>，{@link #sendToPlayer} <b>只能在服务端调</b>。
- * 这不是约定，是硬的：{@code PacketDistributor.sendToServer} 第一句就是
- * {@code Preconditions.checkState(FMLEnvironment.dist.isClient(), "Cannot send
- * serverbound payloads on the server")}，在专用服务端上调会抛 IllegalStateException。
+ * 这不是约定，是硬的：26.3 把服务端发包拆到了 {@link PacketDistributor}，客户端发包
+ * 拆到了 {@code ClientPacketDistributor}；后者直接取本地连接，专用服务端上没有这条路径。
  *
  * 好消息是它抛得干净、信息清楚，不是 NoClassDefFoundError —— 这个类只引用
  * {@code PacketDistributor} 这个公共类，类加载本身不会出事。
  *
- * ⚠ 但 {@code verifyDistIsolation} <b>看不穿</b> {@code PacketDistributor} 这一跳
+ * ⚠ 但 {@code verifyDistIsolation} <b>看不穿</b> {@code ClientPacketDistributor} 这一跳
  * （它扫的是常量池里的客户端类型名，而这里出现的是一个两端都有的类），也不该看穿。
  * 也就是说<b>这条边界只有注释在守</b>。1.20.1 那一支要照 {@code NetworkEvent} 那套
  * 手写这两个方法体，那正是最容易把方向搞反的时刻。
@@ -107,7 +105,7 @@ public final class MCphoneNetwork {
 
     /** 客户端调用：把包发给服务端 */
     public static void sendToServer(CustomPacketPayload packet) {
-        ClientPacketDistributor.sendToServer(packet);
+        com.november.mcphone.core.net.client.ClientPacketSender.send(packet);
     }
 
     /**

@@ -6,7 +6,6 @@ import com.november.mcphone.MCphone;
 import com.november.mcphone.core.PhoneItem;
 import com.november.mcphone.core.PhoneLocation;
 import com.november.mcphone.platform.client.CameraGui;
-import com.november.mcphone.platform.client.port.PhoneGraphics;
 import com.november.mcphone.platform.client.Screens;
 import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.Minecraft;
@@ -225,8 +224,7 @@ public final class PhoneHud {
         //
         // false ＝ 不算暂停时的那一份。手机挂着的时候游戏没暂停，两者一样，
         // 取跟着游戏时间走的那个更合语义（相机那条覆盖层同理）
-        PhoneGraphics.withIsolatedPose(g, graphics ->
-                phone.renderAsHud(graphics, delta.getGameTimeDeltaPartialTick(false)));
+        phone.renderAsHud(g, delta.getGameTimeDeltaPartialTick(false));
     }
 
     //  开关手机
@@ -323,7 +321,7 @@ public final class PhoneHud {
 
         // removed() 认得 hudOwned，不会重复拆，见 PhoneScreen.removed()
         // 不调用 setScreenAndShow：那会立刻强制补一帧，Alt 开关时会闪。
-        if (Screens.current(mc) == closing) Screens.set(mc, null);
+        if (Screens.current(mc) == closing) mc.setScreenAndShow(null);
         closing.shutdown();
     }
 
@@ -357,7 +355,7 @@ public final class PhoneHud {
         manual = Override.SHOW;
         interacting = false;
         phone.adoptByHud();
-        Screens.set(mc, null);
+        mc.setScreenAndShow(null);
     }
 
     /**
@@ -373,7 +371,7 @@ public final class PhoneHud {
 
         interacting = false;
         phone.setHudMode(false);
-        Screens.set(Minecraft.getInstance(), phone);
+        Minecraft.getInstance().setScreenAndShow(phone);
         return true;
     }
 
@@ -381,14 +379,14 @@ public final class PhoneHud {
 
     private static void startInteracting(Minecraft mc) {
         interacting = true;
-        Screens.set(mc, phone);
+        mc.setScreenAndShow(phone);
         putCursorOnPhone(mc);
     }
 
     private static void stopInteracting(Minecraft mc) {
         interacting = false;
         // 只切界面，不强制补帧；鼠标仍由 Gui.setScreen(null) 重新抓回
-        if (Screens.current(mc) == phone) Screens.set(mc, null);
+        if (Screens.current(mc) == phone) mc.setScreenAndShow(null);
     }
 
     /**
@@ -459,7 +457,7 @@ public final class PhoneHud {
      * 有真手机就画真的，玩家摆的是他自己那一页的内容，比一块占位的黑屏好判断得多。
      * 手机不在副手时（在背包里也点得进这一页）返回 false，由编辑器自己画一部空壳。
      */
-    public static boolean renderPreview(PhoneGraphics g, float partialTick) {
+    public static boolean renderPreview(GuiGraphicsExtractor g, float partialTick) {
         if (phone == null) return false;
         syncSize(Minecraft.getInstance());
         phone.renderAsHud(g, partialTick);
@@ -477,6 +475,6 @@ public final class PhoneHud {
         int h = mc.getWindow().getGuiScaledHeight();
         if (phone.width == w && phone.height == h) return;
         // 26.3 的无参 init() 不写 width/height，HUD 首次创建会一直按 0 尺寸布局。
-        phone.init(mc, w, h);
+        phone.resize(mc, w, h);
     }
 }

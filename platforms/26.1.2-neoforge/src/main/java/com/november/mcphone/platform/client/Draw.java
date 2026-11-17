@@ -5,7 +5,6 @@ import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.client.renderer.item.ItemStackRenderState;
 import net.minecraft.resources.Identifier;
-import net.minecraft.util.ARGB;
 import net.minecraft.world.item.ItemDisplayContext;
 import net.minecraft.world.item.ItemStack;
 /** 26.1 使用原版 GUI 提取管线，不再调用已移除的即时 BufferUploader。 */
@@ -22,22 +21,25 @@ public final class Draw {
     public static void browserFrame(PhoneGraphics g,int texture,int x,int y,int w,int h) {
         com.november.mcphone.platform.client.port.PhoneBrowserTexture.draw(g,texture,x,y,w,h);
     }
-
-    public static void tinted(PhoneGraphics g, Identifier tex,
-                              int x, int y, int w, int h, float u, float v,
-                              int srcW, int srcH, int texW, int texH, int argb) {
-        g.nativeGraphics().blit(RenderPipelines.GUI_TEXTURED, tex, x, y, u, v, w, h,
-                srcW, srcH, texW, texH, argb);
+    /** 26.1 的贴图仍走适配器的颜色状态；保持与旧目标相同的调用形状。 */
+    public static void blitTexture(PhoneGraphics g, Identifier tex,
+                                   int x, int y, int w, int h,
+                                   float u, float v, int srcW, int srcH,
+                                   int texW, int texH, int color) {
+        boolean tinted = color != -1;
+        if (tinted) {
+            g.setColor(((color >>> 16) & 255) / 255f, ((color >>> 8) & 255) / 255f,
+                    (color & 255) / 255f, ((color >>> 24) & 255) / 255f);
+        }
+        try {
+            g.blit(tex, x, y, w, h, u, v, srcW, srcH, texW, texH);
+        } finally {
+            if (tinted) g.setColor(1f, 1f, 1f, 1f);
+        }
     }
-
-    public static void highlighted(PhoneGraphics g, Identifier tex,
-                                   int x, int y, int w, int h, float u, float v,
-                                   int srcW, int srcH, int texW, int texH, float brightness) {
-        int alpha = Math.max(0, Math.min(255, (int) ((brightness - 1.0F) * 255.0F)));
-        g.nativeGraphics().blit(RenderPipelines.GUI_NAUSEA_OVERLAY, tex, x, y, u, v, w, h,
-                srcW, srcH, texW, texH, ARGB.color(alpha, 255, 255, 255));
+    public static void renderItem(PhoneGraphics g, ItemStack stack, int x, int y) {
+        g.renderItem(stack, x, y);
     }
-
     public static boolean canDrawItemIcon(ItemStack stack) {
         var mc=Minecraft.getInstance();
         var state=new ItemStackRenderState();

@@ -2,7 +2,7 @@
 
 把一部能用的智能手机塞进 Minecraft —— 拍照、翻相册、换壁纸、听歌、聊天、装 App。
 
-**Minecraft 26.1.2**（NeoForge 26.1.2.100+ / Fabric、Java 25）· **Minecraft 1.21.1**（NeoForge 21.1.200+ / Fabric）· **Minecraft 1.20.1**（Forge 47.4.0+）· 客户端与服务端都需安装
+**Minecraft 26.3 / 26.2 / 26.1.2**（NeoForge / Fabric、Java 25）· **Minecraft 1.21.1**（NeoForge / Fabric）· **Minecraft 1.20.1**（Forge 47.4.0+）· 客户端与服务端都需安装
 
 [下载：Modrinth](https://modrinth.com/mod/mcphone) ·
 [CurseForge](https://www.curseforge.com/minecraft/mc-mods/mcphone) ·
@@ -33,13 +33,17 @@ wiki 是文档的唯一真源，仓库里不再另存一份。
 按分支划分时，非主力分支的更新依赖额外的「追平」提交，其时机不受任何机制约束，
 老版本因而长期滞后。
 
-支持哪些目标由 [`versions/targets.json`](versions/targets.json) 声明 ——
-每个 Minecraft 版本都有 Forge / NeoForge / Fabric 三条，目前正式发布的五个目标：
+支持哪些目标由 [`versions/targets.json`](versions/targets.json) 声明。
+当前统一高版本分支实际构建八个目标：
 
 | 目标 | Minecraft | 加载器 | 状态 |
 |---|---|---|---|
 | `26.1.2-fabric` | 26.1.2 | Fabric | 产物进 Release |
 | `26.1.2-neoforge` | 26.1.2 | NeoForge | 产物进 Release |
+| `26.2-fabric` | 26.2 | Fabric | CI 构建，待实机完整验收 |
+| `26.2-neoforge` | 26.2 | NeoForge | CI 构建，待实机完整验收 |
+| `26.3-fabric` | 26.3 | Fabric | CI 构建，已完成加载冒烟 |
+| `26.3-neoforge` | 26.3 | NeoForge | CI 构建，已完成加载冒烟 |
 | `1.21.1-fabric` | 1.21.1 | Fabric | 产物进 Release |
 | `1.21.1-neoforge` | 1.21.1 | NeoForge | 产物进 Release |
 | `1.20.1-forge` | 1.20.1 | Forge | 产物进 Release |

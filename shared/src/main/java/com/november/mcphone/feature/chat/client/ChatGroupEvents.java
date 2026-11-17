@@ -28,7 +28,8 @@ public final class ChatGroupEvents {
         String preview = entry.senderName() + ": " + PhoneToast.preview(entry.message());
         var toasts = Toasts.manager(mc);
         var old = toasts.getToast(PhoneToast.class, token);
-        if (old != null) old.addMessage(preview); else toasts.addToast(new PhoneToast(token, entry.message().sender(), reply.summary().name(), preview));
+        if (old != null) old.addMessage(preview);
+        else toasts.addToast(new PhoneToast(token, entry.message().sender(), reply.summary().name(), preview));
     }
     public static void onResult(GroupReply.Result reply) { ChatImageSender.onGroupResult(reply); GroupTransport.result(reply); }
 }

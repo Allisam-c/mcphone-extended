@@ -17,16 +17,18 @@ public final class PrivateRhinoIdentityTest {
         if (expected == null) throw new AssertionError("测试必须由平台任务提供已锁定引擎摘要");
         Path origin = Path.of(Context.class.getProtectionDomain().getCodeSource().getLocation().toURI());
         String actual = HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(Files.readAllBytes(origin)));
-        if (!expected.equals(actual)) throw new AssertionError("实际引擎来源/摘要不同：" + origin);
+        if (!expected.equals(actual)) {
+            throw new AssertionError("实际引擎来源/摘要不同：" + origin
+                    + " expected=" + expected + " actual=" + actual);
+        }
         if (expectedVersion == null || !expectedVersion.equals(Context.class.getPackage().getImplementationVersion())) throw new AssertionError("引擎版本错误");
-        var contextOrigin = Context.class.getProtectionDomain().getCodeSource().getLocation();
         var factoryOrigin = ContextFactory.class.getProtectionDomain().getCodeSource().getLocation();
-        if (!factoryOrigin.equals(contextOrigin)) {
-            throw new AssertionError("引擎核心类型来自不同构件：Context=" + contextOrigin + "，ContextFactory=" + factoryOrigin);
+        if (!sameLocation(factoryOrigin, origin)) {
+            throw new AssertionError("引擎核心类型来自不同构件：context=" + origin + " factory=" + factoryOrigin);
         }
         try {
             Class<?> external = Class.forName("org.mozilla.javascript.Context", false, Context.class.getClassLoader());
-            if (external.getProtectionDomain().getCodeSource().getLocation().equals(origin.toUri().toURL()))
+            if (sameLocation(external.getProtectionDomain().getCodeSource().getLocation(), origin))
                 throw new AssertionError("MCPhone 的私有构件含原始 Rhino，外部 mod 自带的引擎则允许共存");
         }
         catch (ClassNotFoundException expectedMissing) { }
@@ -45,5 +47,14 @@ public final class PrivateRhinoIdentityTest {
             }
         }
         System.out.println("PRIVATE_RHINO_IDENTITY_PASS assertions=8 version=" + expectedVersion + " sha256=" + actual + " origin=" + origin);
+    }
+
+    private static boolean sameLocation(java.net.URL location, Path origin) {
+        try {
+            return Path.of(location.toURI()).toAbsolutePath().normalize()
+                    .equals(origin.toAbsolutePath().normalize());
+        } catch (Exception malformedLocation) {
+            return false;
+        }
     }
 }

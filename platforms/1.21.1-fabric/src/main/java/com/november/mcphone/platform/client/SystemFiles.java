@@ -59,6 +59,7 @@ public final class SystemFiles {
         Util.getPlatform().openPath(absolute);
     }
 
+    /** Open a URI with the platform's default handler. */
     public static void openUri(String uri) {
         Util.getPlatform().openUri(uri);
     }

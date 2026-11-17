@@ -8,6 +8,10 @@ import net.minecraft.world.level.biome.Biome;
 public final class PhoneWeather {
     private PhoneWeather() {}
 
+    public static long dayTime(ClientLevel level) {
+        return level.getDefaultClockTime();
+    }
+
     public static Biome.Precipitation precipitation(ClientLevel level, BlockPos pos) {
         return WeatherValues.precipitation(level, pos);
     }

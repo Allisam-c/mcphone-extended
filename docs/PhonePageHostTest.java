@@ -1,7 +1,6 @@
 package com.november.mcphone.core.client;
 
 import com.november.mcphone.api.client.ui.*;
-import com.mojang.blaze3d.vertex.PoseStack;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -115,20 +114,7 @@ public final class PhonePageHostTest {
         };
         check(scroll.mouseScrolled(0, 0, 3, -2) && calls[0] == 1, "旧滚轮只收到一次");
 
-        PoseStack pose = new PoseStack();
-        pose.translate(5, 7, 0); pose.pushPose(); pose.scale(2, 2, 1);
-        var expected = new org.joml.Matrix4f(pose.last().pose());
-        try (var scope = new PhonePoseScope(pose)) { pose.popPose(); pose.translate(99, 99, 0); }
-        check(pose.last().pose().equals(expected), "多 pop 也恢复栈顶矩阵");
-        pose.popPose();
-        check(com.november.mcphone.platform.client.Draw.poseAtBase(pose) && pose.last().pose().m30() == 5, "恢复完整父层和栈深");
-        try {
-            try (var scope = new PhonePoseScope(pose)) {
-                pose.pushPose(); pose.pushPose(); pose.translate(99, 99, 0);
-                throw new IllegalStateException("render");
-            }
-        } catch (IllegalStateException expectedFailure) { }
-        check(com.november.mcphone.platform.client.Draw.poseAtBase(pose) && pose.last().pose().m30() == 5, "异常且少 pop 时恢复");
+        checks += com.november.mcphone.test.PhonePoseTestSupport.verify();
 
         widgetTests();
         System.out.println("PhonePageHostTest passed: " + checks + " assertions");

@@ -2527,640 +2527,72 @@ Shift 与 Alt 两边语义本来就相同（1.21.1 查 340/344、342/346；26.x 
   变五参会冒出 arity 新错）、`MetadataSectionSerializer` 3 条、`Optional<Reference<Item>>` 4 条，
   再往后是真缺 jar 那一堆（refinedstorage 13、Patchouli 11、AE2/RS/Tom 6、MCEF 5、Waystones 2）。
 
-## 三十七、1d 第 23 步：`PhoneMultiLineEditBox` 用 AT 把构造入口接回去 —— 162 → 156
-
-这一步吃掉 **6 条**：`PhoneMultiLineEditBox.java` 自己那 5 条，加上上一轮【故意留着】的
-`NoteEditor:127`。**162 → 156，新增 0 条。**
-
-### 一、方案是用户点的 A，代价是本仓第一次引入 AT 这套机制
-
-上一轮留的三条证据把路收窄成三条：A 给 26.3 加一条 access transformer，只放宽那个私有构造，
-类继续 `extends MultiLineEditBox`，抄来的父类正文整段删；B 改继承 `AbstractTextAreaWidget`
-自己带一个 `MultilineTextField`，等于把原版那三百多行镜像进平台目录，而且不再 is-a
-`MultiLineEditBox`；C 外面包一层委托 —— 那是对【外】API 的形状变了，违反口径。
-选 A 换来的是「附属模组那一句 `new` 一个字不用改」，赔进来的是本仓没有先例的构建配置。
-所以这一步额外留了两份纸：`platforms/26.3-neoforge/src/main/resources/META-INF/accesstransformer.cfg`
-自己把「放宽了什么、为什么必须放宽」写在文件头，机制与许可的条件在
-`platforms/26.3-neoforge/gradle/access-transformer-LICENSE.md`。
-
-### 二、这个补丁要修的事，26.x 上游已经修掉了
-
-`GuiGraphicsExtractor#enableScissor`（`GuiGraphicsExtractor.java:151-153`）把
-`new ScreenRectangle(x0, y0, x1-x0, y1-y0).transformAxisAligned(this.pose)` 算完再压栈，
-`disableScissor`（`:156-158`）只弹栈。父类 `AbstractTextAreaWidget#extractWidgetRenderState`
-（`:64-81`）用的正是这一句：`:70` 开、`:75` 收，中间夹 pose 的 push/translate/pop，
-背景与装饰则按 `showBackground` / `showDecorations` 两个开关走（`:66` 与 `:77`）。
-
-所以这一支【一个方法都不覆写】。留着那份镜像不是「多此一举」而是【会把变换做两遍】，
-还要盖掉原版新加的那两个开关与 IME 预编辑（`preeditOverlay`）。类本身只剩一件事：构造入口。
-
-### 三、只剩构造入口：一条 AT，而且只放宽到 `protected`
-
-26.3 的 `MultiLineEditBox` 公开造法是 `builder()`（`:276`）＋ `Builder#build`（`:330`），
-底下真正干活的构造器是 `private`（`:35`）。Java 的子类构造器只能调【直接父类】的构造器，
-静态工厂递不进 `super(...)`，而那一句 `new PhoneMultiLineEditBox(...)` 是对外 API —— 没有第三条路。
-条目写的是 `protected` 不是 `public`：只有子类要用它，多余的可见性不给。
-
-### 四、描述符是我抄错的，闸替我抓了出来（顺手更正 §三十六 的一处数字）
-
-§三十六 写的「13 参」数错了。`javap -p -s` 对着
-`build/moddev/artifacts/minecraft-patched-26.3.0.3-beta-merged.jar` 量出来是 12 参：
-
-```
-descriptor: (Lnet/minecraft/client/gui/Font;IIIILnet/minecraft/network/chat/Component;Lnet/minecraft/network/chat/Component;IZIZZ)V
-```
-
-第一版按「13」写成了 `...IIZIIZ`，`:createMinecraftArtifacts` 当场报
-`access-transformer:missing-target: The target ... does not exist`
-（NeoForm 的 `ApplySourceTransformAction`）。这条全靠 `neoForge { validateAccessTransformers = true }`
-开着 —— 不开的话写歪的条目一声不响，症状要到下一轮变成「`MultiLineEditBox` 的构造器是
-`private`，访问不到」那种看不懂的错。Java 那一句 `super(...)` 递的是 12 个实参，从一开始就是对的。
-
-### 五、补上去的五个参数，逐个对得上老三支的行为
-
-`Builder` 的字段初值（`:283-288`）是 `textColor = -2039584`、`textShadow = true`、
-`cursorColor = -3092272`、`showBackground = true`、`showDecorations = true`。对 1.21.1：
-
-- `-2039584` = 那边的 `TEXT_COLOR`（`MultiLineEditBox.java:21`）
-- `-3092272` = 那边的 `CURSOR_INSERT_COLOR`（`:19`）
-- `textShadow = true`：那边画正文用的是 `GuiGraphics.drawString(font, text, x, y, color)`
-  这个五参重载，它内部转的就是 `dropShadow = true` 那一个（`GuiGraphics.java:556-558`；
-  `String` 那一对 `:453-455` 同形）
-- `showBackground` / `showDecorations`：那边 `AbstractScrollWidget.renderWidget` 无条件画背景与装饰
-
-`placeholder` 与 `message` 落在哪个位置也核过：1.21.1 那句 `super(x, y, width, height, message)`
-（`:30`）里 `message` 走的是父类 narration，26.3 那个构造器第 6、7 参依次是 `placeholder`、
-`narration` —— 按位置原样递，没有换顺序。
-
-### 六、顺带查出【一处还没修】的行为差：`GuiUtil.enableScissor` 在 26.3 上换算两次
-
-shared 那一份是先 `Transforms.mapX/mapY` 把矩形按 pose 换算、再调原版那句 `enableScissor`；
-而 26.3 的原版那句【也】换算一遍，于是这一支上等于【变换两次】：倍数不是 100% 时页面级裁剪会偏，
-对外的 `PhoneCanvas.clipped` 也在同一条路上（附属模组在用）。
-
-本轮【没修】它。修它要在裁剪上开一条 seam（每平台一份），和这一步要答的问题是两件事；
-已经写进 `GuiUtil.enableScissor` 的 javadoc 与本节，进游戏复核时一并看。这也是当初那份
-「补丁类」文档在这一支上要重读一遍的原因 —— 上游把 pose 认了，我们的门面反而多算了一遍。
-
-### 七、第五处 `render` 收进接缝
-
-`NoteEditor:127` 改成 `EditBoxes.render(box, g, mouseX, mouseY, partialTick)`，
-26.3 那份 `EditBoxes.java` 里「本轮没并进来」那段注释跟着改成「五处都在这一句里」。
-判据是类型：26.3 的 `AbstractScrollArea extends AbstractWidget`（`:15`），
-`MultiLineEditBox` 挂它下面，所以 `PhoneMultiLineEditBox` 是 `AbstractWidget`，门面收得下。
-
-### 八、实测
-
-- 26.3 `:compileJava` **162 → 156**（`BUILD FAILED in 4m 46s`）：多重集比对【消失】的正是那 6 条
-  （`无法将类 MultiLineEditBox 中的构造器应用到给定类型`、`方法不会覆盖或实现超类型的方法`、
-  `找不到符号 renderBackground/renderContents/renderDecorations`、`NoteEditor` 那条 `render`），
-  【新增 0 条】。
-- `:processResources` 之后 `build/resources/main/META-INF/accesstransformer.cfg` 在 ——
-  运行期吃的那份就是编译期那份，不是两处各写一遍。
-- 动了 `shared/`，老三支 `:compileJava` 全 `BUILD SUCCESSFUL`：1.21.1-neoforge 19s、
-  1.21.1-fabric 1m26s、1.20.1-forge 46s（独立 checkout 冷构建，比主工作树那几次慢）。
-- 老三支 `assertTests`：fabric 与 forge 各仍是已知那两条环境红（EconomyData=POSIX 路径、
-  ScriptEngine=zh-CN locale），与第 19/21/22 步逐条一致；1.21.1-neoforge 第一次【多出】第三条红
-  `assertTestLayoutEngineTest`（1000 项布局预算 100ms，实际 135.26ms）—— 那是我把三个平台的构建
-  同时开着跑挤出来的，机器空下来单跑是 0.75ms / 0.62ms、215 项全过。计时类断言不能和并行构建
-  一起读，记在这儿免得下一个人当成回归。
-- 双胞胎：**118 对不变，6,154 → 6,171 行**。涨的 17 行全在 `PhoneMultiLineEditBox.java`（13 → 30）：
-  这一支的实现形状【必然】与另三支不同 —— 补丁方法没了、构造改成 12 参带默认值。注释不计分，
-  加分的只有代码。`verifyPlatformTwins` 按新基线通过。
-- `updateSeamsDoc`：清单没变（26.3-neoforge 47 个、共用代码引用 37 个）—— 没引入新接缝类。
-- 十道配置闸全绿；CI 矩阵、目标声明、改名表未动。
-- 这一步是在独立 checkout `Y:\mod-手机\port263-wt`（分支 `port/26.3-s23`，起点 `346fee6`）做的。
-  主工作树当时有【在线书源】那一族未提交的新文件，其中 `OnlineReaderPage.java` 直接写了改名表的
-  【新名】 `net.minecraft.util.Util`，`:mountSharedJavaRenamed` 那条「新名不许已经出现在共用代码
-  原文里」的闸因此把整个 26.3 挂载拦下来（同一个文件在我改 `GuiUtil` 注释时也拦过我一次，
-  我把那句里的类型名换成描述性说法就过了）。那是别人的在途工作，不该由我改，
-  所以换一份干净树把这一支的数字测准 —— CI 数的也是这份干净树，两边可比。
-
-### 九、还欠着的
-
-- 这个类【一次没进游戏看过】：笔记 App 正文框在 150% / 200% 下放大了还裁不裁得对（这一步的信心
-  全压在「上游那句认 pose」那条取证上）、光标闪烁、IME 预编辑（中文输入法的候选窗那一块）、
-  字符上限计数、滚动条拖动、`setValue` 与 `getValue` 的往返。
-- 附属模组拿到的是同一个 `new`、同一个 `final`、同一个 is-a `MultiLineEditBox`；但它【不能】
-  指望 26.3 上存在过那个 7 参公开构造 —— 那是我们靠 AT 接出来的入口，不是原版给的。
-- `GuiUtil.enableScissor` 换算两次（第六节），修它要开 seam，下一轮排它。
-- 下一簇按数排：`setColor` 8 条、`getMainRenderTarget` 3 条（`Screenshot.grab` 变五参会冒 arity 新错）、
-  `MetadataSectionSerializer` 3 条、`Optional<Reference<Item>>` 4 条，再往后是真缺 jar 那一堆。
-
-## 三十八、1d 第 24 步：把裁剪「交出去」那一步开成 seam —— 26.3 上换算两次修掉了，156 条不变
-
-这一步【不减错误数】：它修的是 §三十七 第六节记下的那条【静默行为差】—— 26.3 上页面级裁剪会把
-矩形换算**两次**。错误计数 **156 → 156**，消失 0 条、新增 0 条（这一步动了错误数才需要解释）。
-
-### 一、症状，以及它为什么不报错
-
-`GuiUtil.enableScissor`（shared，四支共用）先把手机本地坐标按当前 pose 换算成 GUI 坐标，再交给
-原版那句。而 26.x 的原版那句【也】换算一遍（`GuiGraphicsExtractor.java:151-153`：
-`new ScreenRectangle(x0, y0, x1-x0, y1-y0).transformAxisAligned(this.pose)` 之后才 `push`）。
-于是这一支上倍数不是 100% 时，裁剪框被缩两遍（150% 时框成了 225% 大小、位置也偏出去），
-而这一切【不报错也不红】—— 裁剪是一段全局状态，表现只有画面少一块或多一块。
-
-受影响的入口是四处页面加两条对外的路：`AboutPage:92`、`AppManagerDetail:190`、`ChatConversation:457`、
-`HomeGrid:228`，以及 `PhoneCanvas.clipped`（附属模组走的那一条，`PhoneCanvas.java:117`）与
-`PhoneChassis:251` 的状态栏。
-
-### 二、修法：换算与取整只留一份，「别让 pose 过第二遍」归各支
-
-没有图省事把 shared 那份换算删掉、让 26.x 的原版去做，因为两边的取整规矩不一样：
-
-- `GuiUtil` 这一套是【小头 floor、大头 ceil】，最多多画 1 像素 —— 那是 1.9.3 追
-  「放大后最外面一行字被切掉」时定下来的方向（多画看不出来，少画看得出来）。
-- 26.x 的 `ScreenRectangle#transformAxisAligned`（`:105-109`）是【左下角 floor + 宽高各 floor】，
-  比上面窄最多 1 像素，正对着那个老症状。
-
-所以把「交出去」这一步开成 seam，加在本仓唯一碰 `g.pose()` 的那份接缝 `platform/client/Transforms` 上
-（没有新造类）：老三支 = `g.enableScissor(x0, y0, x1, y1)` 原样交出去，行为一字不变；
-26.3 = 先 `pushMatrix()` + `identity()`、交出去、再 `popMatrix()`，让原版那次变换等于不动。
-压进裁剪栈的是一份【算好的矩形值】，弹掉 pose 不影响它，后续绘制照旧走真 pose。
-
-### 三、`identity()` 这条路是查过的，不是想当然
-
-1. `org.joml.Matrix3x2fStack`（joml 1.10.9，javap 过）只声明 `clear` / `pushMatrix` / `popMatrix`
-   加序列化那几个方法，数学操作全在父类 `Matrix3x2f` 上；栈顶那一份【就是】这个实例的字段，
-   所以 `identity()` 改的是当前层，`popMatrix()` 之后原样回来。
-2. `public org.joml.Matrix3x2f identity()` 在同一份 javap 输出里存在（类声明是
-   `public class org.joml.Matrix3x2f implements Matrix3x2fc, Externalizable, Cloneable`）。
-3. 26.3 的 `enableScissor` 只有收四个 int 的那一个入口，没有收 `ScreenRectangle` 的重载 ——
-   `GuiGraphicsExtractor` 里裁剪相关只有 `:151`（开）、`:156`（关）、`:160`（`containsPointInScissor`）
-   三个方法。所以「把算好的矩形直接压栈」这条路【不存在】，只能在交出去之前把 pose 暂时按住。
-4. `disableScissor()`（`:156-158`）只 `pop`，不碰坐标，所以收口那一句不用开 seam；
-   `PhoneScreen` 那圈「附属页面漏了收口就替它弹干净」的兜底因此四支同形。
-
-### 四、实测
-
-- 26.3 `:compileJava` **156 → 156**，`BUILD FAILED in 5m 2s`，多重集比对消失 0 条、新增 0 条。
-- 动了 `shared/`，老三支 `:compileJava` 全 `BUILD SUCCESSFUL`：1.21.1-neoforge 6s、
-  1.21.1-fabric 5s、1.20.1-forge 21s。`assertTests --continue` 三支都只剩已知那两条环境红
-  （`assertTestEconomyDataTest` = POSIX 路径、`assertTestScriptEngineTest` = zh-CN locale）；
-  这次没并行构建，第 23 步那条 `assertTestLayoutEngineTest` 计时红【没复现】，反过来支持了
-  「那是挤出来的」这个判断。
-- 双胞胎：**118 对不变，6,171 → 6,176**。涨的 5 行全在 `Transforms.java`（32 → 37）——
-  老三支那三份的新方法代码逐字相同，加分只来自 26.3 独有的 push/identity/pop。
-- `updateSeamsDoc`：清单没变（26.3-neoforge 47 个、共用代码引用 37 个）—— 没造新接缝类。
-- 十道配置闸全绿；CI 矩阵、目标声明、改名表未动。
-
-### 五、还欠着的
-
-- 这条修的是【不报错】的行为，编译与断言都证明不了它：要进游戏看 150% / 200% 下 `AboutPage`、
-  `AppManagerDetail`、`ChatConversation`、`HomeGrid` 的正文有没有少一行或多一行，以及附属页面走
-  `PhoneCanvas.clipped` 的框对不对。老三支理论上【一字不变】（走的是原样交出去那一条），
-  顺带复核一下这个「理论上」。
-- 第 23 步那条还挂着：AT 在运行期到底生效没有，只有开游戏进笔记 App 才算验过
-  （`IllegalAccessException` / `NoSuchMethodError` 会是它没通）。
-- 下一簇按数排：`setColor` 8 条、`getMainRenderTarget` 3 条（`Screenshot.grab` 变五参会冒 arity 新错）、
-  `MetadataSectionSerializer` 3 条、`Optional<Reference<Item>>` 4 条，再往后是真缺 jar 那一堆。
-
-## 三十九、1d 第 25 步：`setColor` 那一族 —— 色调从【全局状态】搬成【这一次绘制的参数】。156 → 148
-
-`GuiGraphics#setColor` 在 26.x 整条没了，混合开关 `RenderSystem.enableBlend / defaultBlendFunc /
-disableBlend` 也没了。这一簇 8 条红是同一个根：手机贴图要「淡一点」，而在 1.21.1 上那是**一段全局
-着色器状态**，在 26.x 上是**这一次绘制自带的一个参数**。两句不能互译，所以这一维只能搬到参数上。
-
-### 一、两支各是什么形状（都在官方源里查过）
-
-- 1.21.1：`GuiGraphics#setColor(float,float,float,float)` 的函数体只有两句 —— `flushIfManaged()` 加
-  `RenderSystem.setShaderColor(...)`（1.21.1 的
-  `sourcesAndCompiledWithNeoForge_…jar` 里 `GuiGraphics.java:243-246`）。它是【全局】的：设一次，
-  后面画的每一样东西都跟着变，所以用的时候必须当场成对还原 —— 本仓那两处调用点各自包着一对。
-- 26.3：`setColor` 不在 `GuiGraphicsExtractor` 上了，`RenderSystem` 上那三个混合开关也不在。颜色改成
-  每次绘制各带一个：`blit(RenderPipeline, Identifier, int, int, float, float, int, int, int, int,
-  int, int, int color)`（`GuiGraphicsExtractor.java:340-368`），最后那个 `color` 占的正是从前那段
-  全局状态的位置；而那条【不带色】的 blit 收尾给它传 `-1`（`:337`）。
-- 混合也不再取决于「轮到这一句时 GL 恰好是什么状态」：`RenderPipelines.GUI_TEXTURED_SNIPPET` 自带
-  `ColorTargetState(BlendFunction.TRANSLUCENT)`（`RenderPipelines.java:318-327`），`GUI_TEXTURED`
-  就是它 `register` 出来的（`:1107`）。谁走这条 pipeline 谁就混合。
-
-第 24 步那份日志里这 8 条的分布：`GuiUtil` 4 条（`enableBlend`、`defaultBlendFunc`、`disableBlend`
-三条「找不到符号」，加一条「不兼容的类型：`Identifier` 无法转换为 `RenderPipeline`」—— 那条 11 参
-blit 在这一支上头一个参数是 pipeline）、`HomeGrid` 2 条、`BrowserScreen` 2 条。
-
-### 二、修法：alpha 跟着参数走，落地各支写一份
-
-共用侧加的是【带 alpha 的重载】，不是新函数：
-
-- `GuiUtil.drawTexture(…, float alpha)`、`drawNineSlice(…, int border, float alpha)`、
-  `drawNineSliceScaled(…, int corner, float alpha)`，以及 `PhoneSkin.draw(g, element, x, y, w, h,
-  float alpha)`。不带 alpha 的老签名全部保留、转手交给 `1.0F`，所以没改的调用点行为一字不变。
-- 真需要淡的只有两处：`HomeGrid` 的页边光进度（从前 `setColor(1,1,1,progress)` 包一句画再还原）、
-  `BrowserScreen` 的禁用导航键（从前那对 `setColor(1,1,1,DISABLED_ALPHA)`）。九块/十块的九宫格把
-  同一个 alpha 发给每一块，与从前那句全局色等价，而且再也不会漏还原。
-- 四支共用的落地入口是本仓已有的接缝类 `platform/client/Draw`，新方法 `Draw.textured(…)`。老三支 =
-  `enableBlend → defaultBlendFunc →（alpha≠1 时 setColor）→ blit → 还原 → disableBlend`，
-  与从前那三句加那对 setColor 逐句同形；26.3 = `blit(GUI_TEXTURED, …, ARGB.white(alpha))`。
-- 等价到什么程度：`ARGB.white(1.0F)` = `255 << 24 | 0xFFFFFF` = `-1`，正是原版那条不带色 blit 自己传
-  的值（`:337`），所以 100% 不透明的东西【逐像素同一个值】，不是「差不多」。`0 < alpha < 1` 时这一支
-  要多过一遍 8 位量化：`as8BitChannel` 是 `Mth.floor(value * 255.0F)`（`ARGB.java:343-345`），
-  `0.35f` 落到 `89/255` = 0.3490。这是【粒度】的差，不是【方向】的错，而这一支的顶点格式
-  `POSITION_TEX_COLOR` 只有 8 位颜色，没有别的入口。
-
-### 三、越过 1.0 的提亮：宁可让它继续红
-
-`PhoneTheme.SKIN_HOVER_BRIGHTNESS = 1.8f` 要的是**大于 1** 的乘色，老那句浮点给得起，这一支给不起，
-而且失败的方式比「给不起」更难看：`as8BitChannel`【不夹范围】—— `Mth.floor` 就是 `(int)Math.floor(v)`
-（`Mth.java:62-64`），`1.8f * 255.0F` 在 float 里正好是 459，`459 << 24` 截成 int 之后高位丢了，
-剩下的 alpha 字节是 `0xCB` = 203，也就是 **0.796**。照老句直译过来的结果不是「提亮没了」，
-是「提亮变成变暗加半透明」。
-
-所以 `PhoneSkin.java:372/376`（`drawOrFill` 的 highlight）与 `PhoneChassis.java:276/290`（导航键悬停）
-这 4 条【留在 `g.setColor(…)` 上继续报编译错误】，没有换成一句 `Draw.textured(…, 1.8F)` 把红刷掉：
-那是把一种静默的行为丢失换成另一种。这一支上看着最像真办法的是再叠一遍带 `ADDITIVE` 的 textured
-pipeline（`RenderPipelines.GUI_NAUSEA_OVERLAY` = `GUI_TEXTURED_SNIPPET` + `BlendFunction.ADDITIVE`，
-`RenderPipelines.java:1126-1131`），但加法混合与「着色器颜色乘 1.8」在半透明像素上不等价。
-**三个候选留给用户定夺**：换 ADDITIVE 叠一层、把 1.8 改成 8 位内表达得出的一档（那就得接受提亮变弱）、
-或者 26.3 上干脆不做悬停提亮。
-
-### 四、实测
-
-- 26.3 `:compileJava` **156 → 148**（首轮 `BUILD FAILED in 4m 39s`；改注释之后复跑 6s，仍 148）。
-  按（文件, 错误信息, 那条代码快照）多重集比对：消失的 8 条逐条对上 —— `GuiUtil` 4 + `HomeGrid` 2 +
-  `BrowserScreen` 2；新增 **0** 条。
-- 动了 `shared/`，老三支 `:compileJava` 全 `BUILD SUCCESSFUL`：1.21.1-neoforge 4s、1.21.1-fabric 4s、
-  1.20.1-forge 27s。`assertTests --continue` 三支都只剩已知那两条环境红（`assertTestEconomyDataTest`
-  = POSIX 路径、`assertTestScriptEngineTest` = zh-CN locale），其余 40 来份全过，含
-  `assertTestSdkGateTest`。
-- 双胞胎：**118 对不变，6,176 → 6,191（+15）**。+15 全在 `Draw.java`（基线 64 → 79），而且只长在
-  26.3 那一段：按 `PlatformTwinsTask` 同一套算法（去注释、逐行 trim、多重集对称差、以字典序第一个
-  目标为基准）复算，1.20.1-forge↔1.21.1-fabric 19 → 19、1.20.1-forge↔1.21.1-neoforge 19 → 19、
-  1.20.1-forge↔26.3-neoforge 26 → 41。也就是老三支新增的那三份 `textured` 去注释之后逐字相同，
-  加分全部来自 26.3 独有的 pipeline + ARGB 那一份。
-- `updateSeamsDoc`：清单没变（26.3-neoforge 47 个、共用代码引用 37 个）—— 新方法挂在已有的 `Draw`
-  接缝类上，没造新接缝类。
-- 十道配置闸全绿；CI 矩阵、目标声明、改名表未动。
-- 对外的附属模组 API 这一层没动：`shared/…/api/` 一个文件都没改，`GuiUtil`/`PhoneSkin` 的老签名
-  全部保留，新增的都是重载。
-
-### 五、还欠着的
-
-- 第三节那 4 条 setColor 错误等定夺，本步不动它。
-- 只有进游戏才能验的：禁用键淡到 0.35 那档、桌面页边光的进度动画、皮肤贴图在 26.3 上的半透明
-  （混合现在来自 pipeline，不再取决于 GL 状态）。老三支理论上【一字不变】，但 `enableBlend` 现在排在
-  `setColor` 之前（从前 setColor 在调用点、先于 GuiUtil 那三句），而 1.21.1 的 `setColor` 自己会
-  `flushIfManaged()` —— 顺带复核一下这个「理论上」。
-- 第 23 步那条 AT 运行期生效没有、第 24 步那条裁剪倍数，两条都还等进游戏。
-- 下一簇按数排（与上一步同）：`getMainRenderTarget` 3 条（`Screenshot.grab` 变五参会冒 arity 新错）、
-  `MetadataSectionSerializer` 3 条、`Optional<Reference<Item>>` 4 条，后面还是真缺 jar 那一堆。
-
-## 四十、相机目标、资源元数据与注册表返回值：148 → 133
-
-### 一、这一轮收掉的错误
-
-- 26.3 的主渲染目标不再从 `Minecraft.getMainRenderTarget()` 取，改为
-  `mc.gameRenderer.mainRenderTarget()`；截图调用按 26.3 的五参
-  `Screenshot.grab(workDir, forceName, target, downscaleFactor, callback)` 补齐 `1`。
-- `MetadataSectionSerializer` 在 26.3 已变成 `MetadataSectionType<T>` + `Codec<T>`。
-  `PhoneSkin` 不再在 shared 层持有原版元数据类型，而是通过各平台的 `SkinMetadata` 门面读取同一个
-  `mcphone_skin.border` 字段；旧三支继续使用原来的 JSON 结构和默认值。
-- 26.3 的 `BuiltInRegistries.ITEM.get(Identifier)` 返回
-  `Optional<Reference<Item>>`，四支新增 `RegistryItems.get(...)` 门面，把未注册物品统一保留为
-  `Items.AIR`。`ItemRefs`、外部手册图标/标题、内建商店价格都改走该门面，未改变对外 API 签名。
-- 26.3 相机的 `PostChain` 已迁到 `FrameGraph`、`GraphicsResourceAllocator` 和新的 GPU 投影入口，
-  旧版的直接构造、`setUniform`、`process(float)`、`bindWrite` 和 `resize` 均不再存在。
-  本轮恢复截图本身，并让 26.3 的模糊闪光选项明确回退到白闪；没有用空实现伪装成模糊仍可用。
-  后续单独接入新的渲染帧入口。
-
-### 二、实测
-
-- 26.3 `:compileJava` **148 → 133**，新增 0 条。目标、元数据、注册表三簇以及相机旧 API 的
-  连锁错误已从日志中消失。
-- 1.21.1-neoforge、1.21.1-fabric、1.20.1-forge 的 `:compileJava` 均 `BUILD SUCCESSFUL`。
-- `verifySharedIsTargetNeutral` 通过：shared 364 个文件，无版本/加载器轴泄漏；十道配置闸全绿。
-- `verifyPlatformTwins` 通过：120 对，差异合计 6265 行（本步新增的版本接缝和 26.3 相机实现已
-  记入 `versions/platform-twins.json`）；`updateSeamsDoc` 已更新四个目标的接缝清单。
-
-### 三、还欠着的
-
-- 26.3 相机的 GPU `PostChain` 接入仍未完成，当前模糊选项是可见的白闪回退；截图保存路径已经恢复。
-- `PhoneSkin` 的 26.3 `Codec` 元数据与附属模组 API 尚未进游戏验收，但 shared API 目录本步没有改动。
-- 下一簇按编译日志顺序处理真正缺少的外部联动 jar 与 26.3 原版类迁移；那部分不能用平台空壳刷错误数。
-
-## 四十一、拆出 26.3+ 版本层：129 → 129（层边界修正）
-
-### 一、这一轮处理的不是“刷错误数”
-
-- `Item.use` 在 26.3 返回 `InteractionResult`，而 1.21.1 仍返回
-  `InteractionResultHolder<ItemStack>`；tooltip 回调也从旧版的列表参数改为
-  `TooltipDisplay` + `Consumer<Component>`。
-- 不能直接改 `layers/version/1.21+/PhoneItem.java`：这会让 1.21.1 NeoForge/Fabric 同时拿到
-  26.3 签名并回归失败。因此新增 `layers/version/26.3+/`，只把 26.3 的 `PhoneItem` 放入其中，
-  `1.21+` 的其余代码继续共用，26.3-neoforge 额外挂载该层。
-- 多个版本层现在允许同一路径由更窄、后声明的层覆盖。改名挂载任务按相对 Java 路径去重，选择最后一层，
-  同时把“应挂载文件数”闸门改为去重后的有效文件数；此前会把 `PhoneItem.java` 送进 javac 两次。
-
-### 二、实测
-
-- 干净编译确认：26.3 `:compileJava` **130 → 129**，`PhoneItem` 的 API 错误与重复类错误均消失，
-  新增 0 条。其余 129 条仍是下一批原版/外部联动问题。
-- 1.21.1-neoforge、1.21.1-fabric、1.20.1-forge `:compileJava` 均 `BUILD SUCCESSFUL`。
-- 十道配置闸全绿；`verifySharedIsTargetNeutral` 通过；`verifyPlatformTwins` 通过：120 对，
-  差异合计 6335 行（新版本层专属差异已记入基线）。`updateSeamsDoc` 显示接缝清单无需变化。
-
-### 三、还欠着的
-
-- 26.3 的 `RegisterClientReloadListenersEvent`、外部联动 jar、音频/渲染和其余原版 API 仍未处理。
-- 本步只完成版本边界与 `PhoneItem` 签名迁移，没有改变 `shared/api` 的公开接口。
-
-## 四十二、资源重载、动态贴图与天气取值：129 → 120
-
-### 一、这一轮处理的内容
-
-- 26.3 NeoForge 已移除 `RegisterClientReloadListenersEvent`，替代事件是
-  `AddClientReloadListenersEvent`。它要求每个监听器提供稳定的 `Identifier`，因此使用
-  `mcphone:client_reload` 注册同一个清理器，继续清空换肤贴图、App 动态贴图和相机闪光资源。
-- `DynamicTexture` 在 26.3 要求 `(Supplier<String>, NativeImage)`，`NativeImage#setPixelRGBA`
-  变为 `setPixel`。新增平台门面 `ImageTextures`，shared 侧继续保留原有调用语义，26.3 只在
-  平台实现中承载签名差异；旧三支的构造和像素写入保持原样。
-- 26.3 的客户端世界时间入口改为 `getGameTime()`，天气降水通过
-  `ClientLevel#getPrecipitationAt(BlockPos)` 读取。`WorldTime` 与 `WeatherValues` 把这些差异
-  留在平台侧，天气页和时钟页的业务判断不变。
-
-### 二、实测
-
-- 26.3 `:compileJava`：**129 → 127 → 120**，新增 0 条。
-- 1.21.1 NeoForge：`BUILD SUCCESSFUL`。
-- 1.21.1 Fabric：`BUILD SUCCESSFUL`。
-- 1.20.1 Forge：`BUILD SUCCESSFUL`。
-- `shared/api` 未修改；外部联动依赖仍未伪造，AE2、Refined Storage、Tom's Storage、Waystones、
-  Patchouli、MCEF、NetMusic 等缺失构件继续以显式编译错误保留。
-
-### 三、还欠着的
-
-- 26.3 的 `BakedModel`/物品模型属性、玩家头像、浏览器渲染、音频库 API 和其余原版入口仍待
-  分簇迁移。
-- `PhoneSkin` 中超过 1.0 的悬停提亮仍不能直接映射到 26.3 的 8 位颜色参数，暂不以静默
-  no-op 或错误的半透明结果代替。
-
-## 四十五、权限、音频与带色贴图接缝：75 → 68
-
-### 一、这一轮处理的内容
-
-- 命令权限从 shared 下沉到 `platform.CommandPermissions`。旧目标继续使用 OP 3；26.3
-  使用 `PermissionSet.hasPermission(new Permission.HasCommandLevel(PermissionLevel.ADMINS))`，
-  保持 `/mcphone economy audit` 的权限边界不变。
-- `LocalPlayback` 的 OpenAL 初始化下沉到 `platform.client.VanillaAudio`。26.3 使用
-  `Library.init(null, DeviceList.query(), false)`；旧目标保留原来的两参数调用。
-- 图集颜色从 `RenderSystem.setShaderColor` 下沉到 `platform.client.Draw.tinted`，26.3
-  使用 `GuiGraphicsExtractor.blit(..., argb)`，旧目标仍在绘制期间设置并恢复全局颜色。
-- 皮肤悬停提亮下沉到 `Draw.highlighted`，并保留带 `border` 皮肤的九宫格切片。26.3
-  使用 GUI 加法 pipeline 叠加 `(brightness - 1) * 255` 的白色层，避免把 1.8 倍提亮
-  错误编码成半透明颜色；旧目标继续使用原来的浮点 shader-color 乘法。
-
-### 二、实测
-
-- 26.3 `:compileJava`：`75 → 74 → 72 → 68`，本轮新增 0 条。
-- 本轮结束时 `PhoneSkin`、`PhoneChassis`、`IconAtlas`、权限判断和音频初始化的本体 API
-  错误已消失。
-- 26.3 仍然保持显式失败：浏览器的 MCEF/旧顶点渲染链，以及 AE2、Refined Storage、
-  Tom's Storage、Waystones、Patchouli、NetMusic 等缺少 26.3 构建的联动依赖未用 no-op
-  类型掩盖。
-
-### 三、还欠着的
-
-- 仍需处理浏览器 render-state/GpuTextureView 接入，前提是 MCEF 提供 26.3 构建。
-- 外部联动需分别确认 26.3 依赖版本和 API 后再接入；没有依赖证据时保持编译错误。
-- 需完成旧三目标回归、结构闸门、提交和 GitHub Actions 验证。
-
-## 四十六、26.3+ 覆盖层优先级修正：70 → 68
-
-### 一、这一轮处理的内容
-
-- 旧目标回归发现 26.3 专用的 `Prediction`、按键事件和 `KeyMapping` 写法误落在
-  `1.20.5+`/NeoForge 通用层，会让 1.21.1 Fabric 与 NeoForge 不能编译。
-- 将这些同路径覆盖文件放入 `layers/version/26.3+/`，通用层恢复 1.21.1 兼容实现，
-  并把 `26.3+` 放到 26.3 目标层列表末尾。
-- 修正 `mcphone-renames.gradle` 的同路径选择规则：路径更具体者优先；路径同样具体时，
-  后声明的窄版本层覆盖先声明的通用层。这样版本层覆盖不会只生成、却没有进入最终 javac 源集。
-
-### 二、实测
-
-- 26.3 `:compileJava`：`70 → 68`，剩余错误全部落在已知外部联动和浏览器渲染阻塞。
-- 1.20.1 Forge、1.21.1 Fabric、1.21.1 NeoForge：均 `BUILD SUCCESSFUL`。
-- 26.3 的 `PhoneItem`、按键、笔记掉落仍使用 26.3 API；旧三目标继续使用各自原 API。
-
-### 三、还欠着的
-
-- 需重新刷新并验证平台孪生/接缝基线，然后提交并观察 GitHub Actions。
-- 外部联动与 MCEF 26.3 构建仍需真实依赖后再接，不添加占位类型。
-
-## 四十四、物品图标与屏幕属性平台化：112 → 109
-
-### 一、这一轮处理的内容
-
-- `GuiUtil` 不再直接引用 26.3 已移除的 `BakedModel`、`Minecraft#getItemRenderer` 和
-  `GuiGraphics#renderItem`。新增 `platform.client.ItemIcons` 门面，shared 保留原有
-  `canDrawItemIcon`/`drawItemIcon` 调用语义。
-- 旧三支继续通过 `BakedModel.isCustomRenderer()` 拦截可能破坏 GUI 状态的特殊物品；26.3
-  改用 `ItemModelResolver` + `TrackingItemStackRenderState`，检测 `SpecialModelWrapper`
-  后再通过 `GuiGraphicsExtractor.item` 提交物品图标。
-- 手机和平板的旧版物品属性注册移到各平台；26.3 改为 `range_dispatch` item model property，
-  使用 `RegisterRangeSelectItemModelPropertyEvent` 和物品组件读取屏幕亮起状态。对外 API
-  与亮屏/黑屏行为保持不变。
-
-### 二、实测
-
-- 26.3 `:compileJava` **112 → 109**，本轮没有新增错误；`GuiUtil` 的 26.3 API 错误已消失。
-- 1.20.1 Forge、1.21.1 Fabric、1.21.1 NeoForge 的 `:compileJava` 均 `BUILD SUCCESSFUL`。
-- `verifySharedIsTargetNeutral`、`verifyPlatformTwins`、`verifySeamsDocCurrent` 全部通过；
-  当前双胞胎基线为 126 对、差异合计 6405 行，26.3 接缝 56 个。
-
-### 三、还欠着的
-
-- 26.3 仍有 109 个编译错误，主要集中在外部联动依赖、输入事件、`SavedData`、唱片服务、
-  网络 buffer、音频库和浏览器渲染；外部联动缺失仍保留显式编译错误，未添加 no-op 类型。
-- `MusicPage` 还有一处直接调用旧的 `renderItem`，下一轮与音乐/唱片渲染接缝一起处理。
-
-## 四十三、头像与唱片标题门面：120 → 待验证
-
-- 26.3 的 `PlayerFaceRenderer` 已改为 `PlayerFaceExtractor`。新增 `PlayerFaces` 平台门面，
-  26.3 使用 `extractRenderState`，保留头部、帽子层和不透明颜色；旧三支继续调用原入口。
-- 26.3 的 `JukeboxSong.fromStack` 不再需要注册表访问，新增 26.3 `DiscSongs` 实现，仍然
-  优先显示唱片曲目描述，缺失时回退物品显示名。
-
-## 四十七、26.3 真实联动、客户端冒烟与构建收口：68 → 0
-
-### 一、最终依赖与缺失联动
-
-- 26.3 编译基线升级到 NeoForge `26.3.0.95`，运行时版本范围固定为
-  `[26.3.0.95,)`。Java 25、ModDevGradle 2.0.147 与 26.3 的已命名原版输入继续使用。
-- 真实接入的 26.3 联动为 Waystones `26.3.0.1+neoforge-26.3`、Balm
-  `26.3.0.3+neoforge-26.3`、Shogi `26.3.0.3+neoforge-26.3`、Curios
-  `17.0.0-beta.3+26.3`、AE2 `26.3.1-alpha`、GuideME `26.3.4-alpha`、
-  AE2WTLib API/运行时 `26.3.1-beta`、Tom's Simple Storage `26.3-2.12.3`。
-- MCEF、Refined Storage、Patchouli、NetMusic 仍没有可用的 26.3 构件。对应原源码在
-  `mcphoneMountSharedJava` 的 `excludedMountPaths` 阶段被彻底排除，不进入
-  `build/generated/name-renames/`，也不被 javac 看见。`26.3+` 层保留稳定门面，
-  但明确报告能力不可用，没有用空实现伪装成功。
-- `layers/both/26.3-neoforge/` 承载 26.3 的按键、热键与终端注册实现；
-  `versions/layers.json` 与 `versions/targets.json` 已同步声明这一层。
-
-### 二、运行期修复
-
-- 第一次客户端启动在 `RegisterKeyMappingsEvent` 崩溃：
-  `Category 'mcphone:mcphone' is already registered`。26.3 必须通过事件
-  `registerCategory` 注册分类，不能在每个 `KeyMapping` 循环里调用已废弃的静态
-  `Category.register`。现已改为一次注册分类，并用带 `KeyConflictContext.IN_GAME`
-  的构造器恢复旧三支的冲突行为。
-- 26.3 的 `range_dispatch` 物品模型要求 `property` 是字符串。手机与平板原先写成
-  `{"type":"mcphone:screen_on"}`，客户端资源加载会报 `Not a string`；现改为
-  `"property": "mcphone:screen_on"`。
-- 修正后客户端成功启动并完成主菜单资源加载，日志中 13 个 App 注册完成，
-  AE2 与 Tom's Simple Storage 终端联动接通，MCEF 明确记录为不可用；没有 MCphone
-  的异常、崩溃或资源解析错误。客户端窗口未做进一步手工点击验收。
-
-### 三、构建与运行验证
-
-- 26.3 完整 `build`：`BUILD SUCCESSFUL`，73 个任务，42 份断言测试全部通过。
-- 26.3 真实服务器启动到 `Starting Minecraft server on *:25565` 与
-  `Done (2.185s)`，随后手工停止，无残留服务器进程。
-- 旧目标完整断言回归通过：1.20.1 Forge 41 份，1.21.1 Fabric 与
-  1.21.1 NeoForge 各 42 份；三者均为 `BUILD SUCCESSFUL`。
-- 校验闸全绿：平台孪生 131 对（差异 6744 行）、shared 中立 364 文件、
-  SPI 18 个类、层校验、dist 隔离、数据包命名与 seams 清单全部通过。
-- jar 内容确认包含 Waystones、Terminals、AE2、AE2WTLib、Tom's 与 Curios
-  联动类；不包含 `McefBackend.class`、`RefinedStorageIntegration.class`、
-  `com/refinedmods/` 或 `com/cinemamod/mcef/`。
-
-### 四、边界
-
-- 浏览器、Refined Storage、Patchouli 与 NetMusic 在 26.3 上仍不可用，直到上游
-  提供对应版本；这不是静默降级。
-- 客户端只验证了启动、主菜单资源加载、App 注册和联动装载。手机界面内的逐页点击、
-  输入法、裁剪、相机、聊天与附属 API 行为仍需后续进游戏逐项验收。
-
-## 四十八、真实进世界复测：背景与成就注册表两处运行期崩溃
-
-### 一、背景模糊只能提交一次
-
-- 26.3 的 `Screen#extractRenderStateWithTooltipAndSubtitles` 会在调用
-  `extractRenderState` 前先调用一次 `extractBackground`。共用代码仍按老版本形状在
-  `render` 里调用 `Draw.screenBackground`，于是同一帧提交两次模糊，打开手机时抛
-  `Can only blur once per frame`。
-- 26.3 的 `Draw.screenBackground` 改为空实现：背景已经由原版入口先画完，不是漏画；
-  老三支仍照旧调用 `renderBackground`。容器界面因此也从每帧两次背板降为一次。
-
-### 二、旧复数成就目录仍会被加载
-
-- 只把 26.3 成就放到 `data/mcphone/advancement/recipe/` 还不够。`1.21+` 层里的
-  `advancement/recipes/` 会一起进入 jar，26.3 会解析整个成就注册表，旧文件里的
-  `recipe_unlocked.conditions.recipe` 仍会让世界加载失败。
-- 26.3 的 `processResources` 现在排除 `data/mcphone/advancement/recipes/**`，
-  只保留迁移后的单数目录。
-
-### 三、验证
-
-- `clean build` 通过：74 个任务，42 份断言测试全部通过。jar 内只剩
-  `data/mcphone/advancement/recipe/`，旧复数目录已排除。
-- 把真实崩溃存档复制到开发运行目录后，客户端成功进入世界，服务端加载
-  2344 个成就、13 个客户端进度；给予手机并按 `H` 打开后，手机主屏、App 图标与
-  模糊背景正常显示。日志中没有 `Can only blur once per frame`、
-  `Registry loading errors` 或新的 crash report，客户端正常关闭。
-- 本轮 jar：3,076,716 字节，SHA256
-  `A8E18CB5615157517F07B3B2D13711E9912C8E622BE9149D76FC786E8099059A`。
-
-## 四十九、同步 main 到 port/26.3-s23
-
-- 合并源为 `main` 的 `cd1a9ece`，合并前 26.3 分支为 `23aec8d0`。
-- 共用代码接入 main 新增的 `PhoneGraphics`、`PlayerAccess`、`PlayerEffects`、
-  `PlayerAbilities`、`Predicates`、`LootAccess`、`PhoneKeyInput`、`PhoneSoundDevice`、
-  `PhoneWeather` 与 `PhoneSkinMetadata` 接缝；26.3 专属差异继续留在
-  `platforms/26.3-neoforge` 和 `versions/name-renames.json`。
-- 26.3 的私有 Rhino 改为消费仓库统一的 `gradle/mcphone-engine-dependency.gradle`，
-  不再声明原版 Rhino。新增的断言夹具覆盖 `TestFontBase`、`TestEditBoxFactory` 与
-  `CommandPermissions`；26.3 的纯 JVM 测试跳过需要真实 FML 引导的 Brigadier
-  静态树，POSIX 文件权限断言在非 POSIX 文件系统上显式跳过。
-- 已重新生成接缝清单与平台孪生基线：26.3 接缝 81 个、26.1.2 接缝 83 个，
-  全部目标 155 对、差异合计 9796 行。
-- 1.20.1 Forge、1.21.1 Fabric、1.21.1 NeoForge 与 26.1.2 NeoForge 的
-  `compileAssertTests` 均 `BUILD SUCCESSFUL`。
-- 本地 26.3 `build --max-workers=2`：`BUILD SUCCESSFUL`，114 份断言全部跑完；
-  私有引擎身份 708 类、类型边界 1016 类，正式包内嵌引擎校验通过。
-  默认并行度在这台 Windows 机器上曾触发 `LayoutEngineTest` 的 100ms 性能阈值，
-  单测复跑为 0.51ms；Linux CI 仍是权威结果。
-- 尚未进行这一版 jar 的进游戏逐页复测；聊天、输入法、裁剪、相机和附属 API
-  仍需在真实客户端/服务端中验收。
-
-## 五十、26.3 Fabric 无混淆适配与真实进世界验证
-
-### 一、构建栈与源码边界
-
-- 新增 `platforms/26.3-fabric`，使用 Fabric Loom `1.19.3`、Gradle `9.8.2`、
-  Fabric Loader `0.19.5`、Fabric API `0.164.0+26.3`、Java 25。26.3 原版
-  不再混淆，`build.gradle` 不声明 mappings，access widener 使用 `official`。
-- 物品亮屏模型改用原版 `minecraft:condition` + `minecraft:has_component`
-  读取 `mcphone:screen_on`，删除自定义 `ItemProperties`；这不是视觉降级，
-  26.3 的物品模型系统原生支持组件条件。
-- 第二个 Fabric 目标让原本空置的 `fabric` 加载器层有了真实内容。逐文件比对后，
-  3 份跨版本同形代码进入 `layers/loader/fabric/`，`ClientNetworking` 因同时依赖
-  Fabric 网络 API 与 1.20.5+ 原版类型进入新的 `fabric-1.20.5+` 交集层。
-  Mixin 的注入签名在 1.21.1 与 26.3 不同，继续留在各自平台。
-
-### 二、运行期修复
-
-- 26.3 的 `Item.Properties` 在构造时必须带物品 ID；Fabric 手工注册不会自动补，
-  首次服务器启动在 `PhoneItem` 处报 `Item id not set`。`ModItems` 现在用
-  `ResourceKey.create(Registries.ITEM, id)` 显式设置。
-- 26.3 的鼠标入口从 `MouseHandler.onPress` 改为
-  `onButton(long, MouseButtonInfo, int)`，键盘入口改为
-  `keyPress(long, int, KeyEvent)`；两份 Fabric Mixin 分别按各自版本签名注入。
-- 26.3 的 `SoundEngine.play` 返回 `PlayResult`，注入回调必须是
-  `CallbackInfoReturnable`；修正后网络音乐流包装不再在类加载阶段失败。
-- `fabric.mod.json` 的联动建议键按真实 mod id 修正为 `toms_storage`。
-
-### 三、验证
-
-- 26.3 Fabric 完整 `build`：`BUILD SUCCESSFUL`，150 个任务，114 份断言全部通过；
-  正式包内嵌 Rhino 校验通过，SPI 18 个类、dist 615 个非 client 类隔离通过，
-  shared 495 文件保持版本与加载器中立。
-- 客户端真实启动到单人世界：60 个模组加载，资源与音效引擎启动，13 个 App 注册，
-  服务端握手、存档 App 安装状态与 Tom's Storage 终端联动完成；日志没有 MCphone
-  Mixin、注册或资源崩溃。手机界面内的逐页点击仍需人工交互验收。
-- 专用服务器真实启动通过模组初始化并记录“MCphone 模组加载完成 —— 手机已就绪”；
-  随后停在 Minecraft 自带 `eula=false` 检查，未替用户接受 EULA。
-- 1.21.1 Fabric 完整回归同时通过：114 份断言、构建、加载器孪生与接缝文档检查；
-  平台孪生 161 对、差异 12816 行，26.3 Fabric 与 1.21.1 Fabric 接缝各 93 个。
-- 本轮 jar：`platforms/26.3-fabric/build/libs/mcphone-1.11.2.jar`，
-  4,753,835 字节，SHA256
-  `5C02076EC3DEB97747E5ADC8819732310594618EDD02A3CE79F96287C23F02D2`。
-  jar 内不含 MCEF、Refined Storage、AE2、Patchouli、NetMusic 的外部类。
-
-### 四、边界
-
-- Curios、AE2、Refined Storage、Patchouli、MCEF、NetMusic 没有 Fabric 26.3
-  构件，对应能力显式不可用或在挂载阶段排除，没有添加静默 no-op 桩。
-- 专用服务器未继续生成世界，因为那需要接受 EULA；单人客户端已提供同版本的
-  真实服务端逻辑启动证据。
-
-## 五十一、副手 HUD 的矩阵泄漏
-
-- 26.3 的 HUD 元素共用同一个 `GuiGraphicsExtractor`。`PhoneScreen` 在手机缩放与
-  平移内完成最后一批绘制后，`PhoneGraphics` 已把原生矩阵同步到手机坐标系；此前
-  `PhoneHud.render` 没有恢复这一层，后续血量、聊天等原版 HUD 会继续沿用手机变换，
-  表现成副手手机出现时整块 UI 一起错位。
-- `PhoneHud.render` 现在用 `PhoneGraphics.withIsolatedPose` 包住整帧手机绘制，
-  由 `finally` 恢复调用方矩阵。相机 HUD 使用同样的提取器和绘制方式，也一并隔离，
-  包括拍照干净帧提前 `return` 的路径。
-- 26.3 Fabric 与 26.3 NeoForge 的两份 `PhoneHud`、`CameraHandler` 同步修复。新增
-  `HudGraphicsPoseTest` 覆盖正常、异常和嵌套绘制后的矩阵恢复；Fabric 全量断言从
-  114 份增加到 115 份。
-- 本轮 Fabric jar：4,754,060 字节，SHA256
-  `A9E017DA8299108217FC757D4B7F85BA1817F0C4E7C7DD81640DF3B910103DC4`。
-
-## 五十二、作者、仓库与显示名
-
-- 仓库根 `gradle.properties` 统一提供 `mod_authors=250325` 与
-  `mod_repo_url=https://github.com/Beijingdragon233/mcphone_fabric`。各平台不再
-  各写一份作者或 GitHub 地址；CI 的仓库级键检查也覆盖这两个字段。
-- 对外显示名改为 `MCphone-More versions`。`mod_id` 仍为 `mcphone`，包名、网络
-  协议、存档标识与 jar 文件名不变，因此不破坏已有存档和更新识别。
-- Fabric 的 `authors`、`homepage`、`issues`、`sources`，NeoForge 的
-  `authors`、`displayURL`、`issueTrackerURL`，Forge 的 `authors`，以及游戏内
-  关于页、物品栏分类、按键分类和资料页 GitHub 入口均已切换。MIT 原始版权行、
-  历史审计基线与已归档附属仓库的出处说明保留，不冒充为当前仓库。
-- 六个目标的元数据生成全部通过。26.3 Fabric 完整校验通过：151 个任务、
-  115 份断言，jar 内实际读取到新名称、作者与仓库地址。
-- 本轮 jar：4,754,131 字节，SHA256
-  `B20DAACBA83A1A7DDD81EB53AA2EFABC5A2B2361B3BB124E71F0C6529A464CA2`。
+## 三十七、同步上游后的收口：五支编译全绿，结构闸全绿，26.3 断言也接上
+
+这一轮把上游 `v1.12.0` 合进 `port/26.3-upstream112` 之后，先处理了共享代码直接撞上
+26.x 新名字的四个口子：
+
+| 接缝 | 老目标 | 26.1.2 / 26.3 | 调用方 |
+|---|---|---|---|
+| `platform.GameInfo#versionName()` | `WorldVersion#getName()` | `WorldVersion#name()` | `AboutPage` |
+| `platform.ItemLookup#get(...)` | `BuiltInRegistries.ITEM.get(ResourceLocation)` | `getValue(Identifier)` | `ItemRefs`、外置书源、内建价格 |
+| `platform.client.Textures#dynamicTexture` / `#setPixelABGR` | `DynamicTexture(NativeImage)`、`setPixelRGBA` | `DynamicTexture(Supplier<String>, NativeImage)`、`setPixelABGR` | `ImageCodec`、`WallpaperStore` |
+| `platform.client.PhoneWeather#dayTime(Level)` | `Level#getDayTime()` | `Level#getDefaultClockTime()` | `ClockPage`、`WeatherPage` |
+
+这四类不是靠改名表硬改调用点：它们的返回值、构造器参数或注册表取值口有形状差异，
+所以按目标各留一份，共用代码只认接缝。`PhoneWeather` 原有的
+`precipitation(Level, BlockPos)` 也一起留在了这一层，天气页不再直接碰平台类型。
+
+26.1-neoforge+ 交集层里的 `PhoneItemProperties` 本来就用 26.x 的
+`Identifier` 与 `RegisterConditionalItemModelPropertyEvent` 写成。它不能走老名字的
+改名挂载，否则会撞上「新名已经在原文里」的不变量。`mcphoneMountSharedJava` 因此
+增加了一个 `verbatimMounts` 参数：交集层原样挂载，`shared/` 与老三支继续走改名副本。
+26.3 的挂载任务这次处理了 594 个文件，改名命中数与上一次一致，`compileJava`
+`BUILD SUCCESSFUL`。
+
+实测结果：
+
+- `1.20.1-forge`：Java 17，`compileJava` 49 秒通过。ForgeGradle 的启动联网检查在
+  本机卡在 TLS 握手，使用它自己的 `net.minecraftforge.gradle.check.certs=false`
+  后正常；这不是源码错误。
+- `1.21.1-neoforge`：`compileJava` 通过；`check -x compileAssertTests -x assertTests`
+  通过，31 个任务全绿。
+- `1.21.1-fabric`：`compileJava` 通过；同口径 `check` 通过，30 个任务全绿。
+- `26.1.2-neoforge`：`compileJava` 通过；完整 `check` 跑了 182 个任务，只有
+  `assertTestEconomyDataTest`（Windows 无 POSIX 权限）和
+  `assertTestPrivateRhinoIdentityTest`（本机取到的引擎构件来源与测试预期不同）两处
+  环境/夹具红，其余断言测试通过。
+- `26.3-neoforge`：`compileJava` 通过；`check -x compileAssertTests -x assertTests`
+  34 个任务全绿，包含私有引擎、SPI、dist、shared 中立性、第三方白名单、层校验、
+  加载器孪生、平台孪生与 seams 清单。
+
+基线也重新生成了：`updateTwinBaseline` 写为 **139 对 / 9,363 行**；
+`updateSeamsDoc` 现在包含 26.3 段，五支的接缝数为
+`1.20.1-forge 135（引用 93）`、`1.21.1-fabric 86（引用 51）`、
+`1.21.1-neoforge 68（引用 49）`、`26.1.2-neoforge 77（引用 48）`、
+`26.3-neoforge 67（引用 48）`。
+
+**26.3 的断言测试文档已接上。** 最初直接跑完整 `check` 时，
+`compileAssertTests` 报 155 条错误，来源分成三类：
+
+- 仓库根 `docs/` 仍按 1.21.1 的 `ResourceLocation`、`GuiGraphics`、`drawString`
+  和 `PoseStack` 写；26.3 的测试没有像 26.1.2 那样先过 API 绑定。
+- 根测试依赖 `com.november.mcphone.test.TestFontBase` /
+  `TestEditBoxFactory`，这两个夹具目前只在 26.1.2 的 `docs/` 里。
+- `PhonePageHostTest` 直接使用 `PoseStack` 与 `Draw.poseAtBase`，26.3 的 2D
+  `Matrix3x2fStack` 和平台 `Draw` 需要单独的测试版本。
+
+后续补齐了按目标的断言 API 绑定、测试字体与输入框夹具，以及 26.3 的
+`Matrix3x2fStack` 测试支持。`compileAssertTests` 现在通过；完整 `check` 跑完
+**177 个任务、139 份断言测试全部通过**（其中 `DeploymentAuthorityTest` 94 条、
+`EconomyDataTest` 496 条），五道新增结构闸门也都包含在同一次运行里。
+
+复跑时还抓到 `LayoutEngineTest` 的一个偶发误报：并行执行整个 `check` 时，
+2048 项定高列表这一项会超过 50ms；隔离复跑同一测试时 215 条断言全过，
+该列表与随机树都远低于阈值。处理方式与已有的随机树性能断言一致：首轮超标时
+对同一棵树做隔离复测，以稳定耗时为裁判，同时保留首轮读数写进失败信息。
+
+最终五支结果：`1.20.1-forge`、`1.21.1-fabric`、`26.1.2-neoforge`、
+`26.3-neoforge` 的完整 `check` 均通过；`1.21.1-neoforge` 在重跑时卡在
+`fr.delthas:javamp3` 的 `maven.neoforged.net` 元数据解析超时，属于本机网络问题，
+此前同一源码树的完整 `check` 记录为通过。

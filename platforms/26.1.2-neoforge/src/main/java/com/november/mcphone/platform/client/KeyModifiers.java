@@ -30,7 +30,16 @@ public final class KeyModifiers {
         return KeyModifier.isKeyCodeModifier(key);
     }
 
+    /** 当前按着的 Ctrl；macOS 上沿用适配器的 Command 语义。 */
+    public static boolean ctrl() {
+        return com.november.mcphone.platform.client.port.PhoneInputs.control();
+    }
+
     public static boolean shift() {
-        return Minecraft.getInstance().hasShiftDown();
+        return com.november.mcphone.platform.client.port.PhoneInputs.shift();
+    }
+
+    public static boolean alt() {
+        return com.november.mcphone.platform.client.port.PhoneInputs.alt();
     }
 }

@@ -13,14 +13,27 @@ import net.minecraft.world.level.storage.loot.parameters.LootContextParams;
 
 import java.util.List;
 
-/** 战利品表的读取与掷取。 */
+/**
+ * Loot table lookup and rolling for 26.3.
+ *
+ * <p>Lookup goes through the server's reloadable registries so data-pack
+ * reloads are visible. Rolling stays on the server thread because it uses the
+ * level's random source.
+ */
 public final class LootAccess {
-    private LootAccess() {}
 
+    private LootAccess() {
+    }
+
+    /** Whether the current server data knows this loot table. */
     public static boolean exists(ServerLevel level, Identifier id) {
         return table(level, id) != LootTable.EMPTY;
     }
 
+    /**
+     * Roll a table with the GIFT parameter set. An unknown table yields an
+     * empty list; this method does not hand the result to the player.
+     */
     public static List<ItemStack> roll(ServerLevel level, Identifier id, ServerPlayer player) {
         LootTable table = table(level, id);
         if (table == LootTable.EMPTY) return List.of();

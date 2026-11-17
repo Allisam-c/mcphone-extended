@@ -3,6 +3,7 @@ package com.november.mcphone.feature.chat.client;
 import com.november.mcphone.core.client.FontPalette;
 import com.november.mcphone.core.client.PlayerAvatar;
 import com.november.mcphone.feature.chat.group.GroupMember;
+import com.november.mcphone.platform.client.Transforms;
 import java.util.ArrayList;
 import java.util.List;
 import net.minecraft.client.gui.Font;
@@ -45,15 +46,15 @@ final class ChatGroupMemberGrid {
             String label = cell.invite() ? Component.translatable("mcphone.chat.group.invite").getString()
                     : members.get(cell.member()).name();
             // 列宽可能是奇数，头像与文字都按同一浮点中心定位，不向左截掉半像素。
-            g.pose().pushPose();
+            Transforms.push(g);
             try {
-                g.pose().translate(avatarX(b), y, 0);
+                Transforms.translate(g, avatarX(b), y);
                 if (cell.invite()) {
                     ChatUi.glass(g, ChatGlass.Surface.BUTTON, 0, 0, 16, 16, b.contains(mx, my));
                     ChatUi.sizedIcon(g, ChatUi.Icon.ADD, 4, 4, 8,
                             b.contains(mx, my) ? ChatUi.accent() : FontPalette.body());
                 } else PlayerAvatar.draw(g, members.get(cell.member()).id(), 0, 0, 16);
-            } finally { g.pose().popPose(); }
+            } finally { Transforms.pop(g); }
             ChatUi.buttonText(g, font, ChatUi.truncate(font, label, b.width() - 2, ChatLayout.META_SCALE),
                     b.x() + b.width() / 2f, y + 21, ChatLayout.META_SCALE, FontPalette.subtle());
         }

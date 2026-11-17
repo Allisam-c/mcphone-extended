@@ -12,7 +12,7 @@ if (!repoPropsFile.exists()) {
 }
 def repoProps = new Properties()
 repoPropsFile.withInputStream { repoProps.load(it) }
-['mod_id', 'mod_name', 'mod_license', 'mod_group_id', 'mod_version', 'mod_authors', 'mod_repo_url'].each { key ->
+['mod_id', 'mod_name', 'mod_license', 'mod_group_id', 'mod_version', 'mod_authors'].each { key ->
     if (!repoProps.containsKey(key)) {
         throw new GradleException("仓库根的 gradle.properties 缺 ${key}")
     }
@@ -51,23 +51,34 @@ repositories {
     mavenCentral()
 }
 
-def excludedOptionalSources = []
-if (!project.hasProperty('mcef_version')) {
-    excludedOptionalSources +=
-            'shared/src/main/java/com/november/mcphone/feature/browser/client/McefBackend.java'
-}
-if (!project.hasProperty('refinedstorage_version')) {
-    excludedOptionalSources += [
-            'layers/version/1.20.5+/src/main/java/com/november/mcphone/feature/terminal/integration/refinedstorage/TerminalSlotReference.java',
-            'layers/version/1.20.5+/src/main/java/com/november/mcphone/feature/terminal/integration/refinedstorage/TerminalSlotReferenceFactory.java'
-    ]
-}
-
+def postRenameLayerNames = ['26.1-neoforge+', '26.2-fabric'] as Set
+def postRenameLayers = mcphoneLayers.findAll { it.name in postRenameLayerNames }
+def legacyLayers = mcphoneLayers.findAll { !(it.name in postRenameLayerNames) }
 mcphoneMountSharedJava(sourceSets.main.java,
         (['shared/src/main/java': new File(repoRoot, 'shared/src/main/java')] +
-         mcphoneLayers.collectEntries { layer ->
+         legacyLayers.collectEntries { layer ->
              [("${layer.relDir}/src/main/java"): layer.javaDir]
-         }), excludedOptionalSources)
+         }),
+        postRenameLayers.collectEntries { layer ->
+            [("${layer.relDir}/src/main/java"): layer.javaDir]
+        })
+
+// 26.3 has platform-specific replacements for these classes, or no compatible
+// third-party artifact. Keep the shared copies out of the Fabric source set.
+sourceSets.main.java.exclude(
+        'shared/src/main/java/com/november/mcphone/core/client/PhonePoseScope.java')
+sourceSets.main.java.exclude(
+        'layers/version/1.21+/src/main/java/com/november/mcphone/core/PhoneItem.java')
+sourceSets.main.java.exclude(
+        'shared/src/main/java/com/november/mcphone/core/client/PhoneItemProperties.java')
+sourceSets.main.java.exclude(
+        'layers/version/1.20.5+/src/main/java/com/november/mcphone/feature/terminal/integration/refinedstorage/**')
+sourceSets.main.java.exclude(
+        'shared/src/main/java/com/november/mcphone/feature/browser/client/McefBackend.java')
+sourceSets.main.java.exclude(
+        'layers/loader/fabric/src/main/java/com/november/mcphone/core/client/AppHotkeyHandler.java')
+sourceSets.main.java.exclude(
+        'layers/loader/fabric/src/main/java/com/november/mcphone/core/client/MCphoneKeyBindings.java')
 
 sourceSets.main.resources {
     srcDir('../../shared/src/main/resources')
@@ -90,7 +101,6 @@ tasks.named('processResources', ProcessResources).configure {
             mod_license      : mod_license,
             mod_version      : mod_version,
             mod_authors      : mod_authors,
-            mod_repo_url     : mod_repo_url,
     ]
     inputs.properties replaceProperties
     filesMatching(['fabric.mod.json']) {
@@ -123,6 +133,7 @@ dependencies {
     // No Fabric 26.3 artifact exists. Compile against the Mojang-named
     // NeoForge API jars only; no runtime mod is installed.
     compileOnly "maven.modrinth:curios:${curios_version}"
+    compileOnly "maven.modrinth:patchouli:${patchouli_version}"
     compileOnly "maven.modrinth:ae2:${ae2_version}"
     compileOnly "maven.modrinth:guideme:${guideme_version}"
     compileOnly "de.mari_023:ae2wtlib_api:${ae2wtlib_version}"
@@ -138,30 +149,40 @@ apply from: '../../gradle/mcphone-engine-dependency.gradle'
 apply from: "${projectDir}/../../gradle/mcphone-checks.gradle"
 apply from: "${projectDir}/../../gradle/mcphone-sign.gradle"
 
-if (mcphoneNameRenames.values().every { it.isEmpty() }) {
-    throw new GradleException('26.3 Fabric 必须启用按目标改名挂载。')
-}
+ext.mcphoneBindMainApiNames = false
+ext.mcphoneApiBindingsFile = '../../versions/26.3-assertion-api-names.json'
+apply from: '../../gradle/mcphone-port-bindings.gradle'
 
-def assertDocMounts = ['docs': new File(repoRoot, 'docs')]
-mcphoneLayers.each { layer ->
-    if (layer.docsDir.isDirectory()) {
-        assertDocMounts["${layer.relDir}/docs"] = layer.docsDir
+// 26.3's permission codecs initialize vanilla registries during class
+// initialization. Run these two tests behind an explicit headless bootstrap.
+def loaderAssertionClasses = layout.buildDirectory.dir('classes/loader-assertion-bootstrap')
+def compileLoaderAssertionBootstrap = tasks.register('compileLoaderAssertionBootstrap', JavaCompile) {
+    source = fileTree('src/assertionBootstrap/java') { include '**/*.java' }
+    classpath = sourceSets.main.compileClasspath
+    destinationDirectory = loaderAssertionClasses
+    javaCompiler = javaToolchains.compilerFor(java.toolchain)
+}
+def loaderAssertionFolders = files(layout.buildDirectory.dir('classes/assert-tests'), sourceSets.main.output)
+[
+        DeploymentAuthorityTest: 'com.november.mcphone.core.script.server.DeploymentAuthorityTest',
+        EconomyDataTest: 'com.november.mcphone.core.script.server.economy.EconomyDataTest'
+].each { simple, entry ->
+    tasks.named("assertTest${simple}", JavaExec).configure {
+        dependsOn compileLoaderAssertionBootstrap
+        classpath = files(loaderAssertionClasses, loaderAssertionFolders, sourceSets.main.runtimeClasspath)
+        mainClass = 'com.november.testbootstrap.LoaderAssertionMain'
+        args entry
+        javaLauncher = javaToolchains.launcherFor(java.toolchain)
+        jvmArgs '--enable-native-access=ALL-UNNAMED', '--sun-misc-unsafe-memory-access=allow',
+                '--add-opens=java.base/java.lang.invoke=ALL-UNNAMED'
+        def runtimeDirectory = layout.buildDirectory.dir("assertion-runtime/${simple}").get().asFile
+        workingDir = runtimeDirectory
+        doFirst {
+            if (!runtimeDirectory.isDirectory() && !runtimeDirectory.mkdirs()) {
+                throw new GradleException("无法创建隔离的断言运行目录：${runtimeDirectory}")
+            }
+        }
     }
-}
-def platformDocs = new File(projectDir, 'docs')
-if (platformDocs.isDirectory()) {
-    assertDocMounts['platforms/26.3-fabric/docs'] = platformDocs
-}
-
-def mountAssertTestsRenamed = mcphoneRegisterRenamedMount(
-        'mountAssertTestsRenamed',
-        assertDocMounts,
-        layout.buildDirectory.dir('generated/assert-tests-renamed'),
-        false)
-
-tasks.named('compileAssertTests', JavaCompile).configure {
-    dependsOn mountAssertTestsRenamed
-    setSource(mountAssertTestsRenamed.map { it.generatedDir })
 }
 
 publishing {

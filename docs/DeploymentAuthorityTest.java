@@ -303,7 +303,7 @@ public class DeploymentAuthorityTest {
         var dispatcher = new com.mojang.brigadier.CommandDispatcher<net.minecraft.commands.CommandSourceStack>();
         ScriptAdminCommand.register(dispatcher);
         net.minecraft.commands.CommandSourceStack src =
-                com.november.mcphone.test.CommandPermissions.source(3);
+                com.november.mcphone.test.CommandSourceStackFactory.create(3);
         for (String cmd : new String[]{
                 "mcphone script identity",
                 "mcphone script remove example:shop",

@@ -68,15 +68,26 @@
     "populated": true,
     "note": "1.21（数据包格式 48）把数据包的目录名从复数改成单数：recipes→recipe、advancements→advancement、loot_tables→loot_table、tags/items→tags/item、functions→function。这条边界与 1.20.5+ 那条【不是同一条】，所以是单独一层 —— 塞进 1.20.5+ 的话，一个 1.20.6 的目标挂上那层就会拿到单数目录名，而它那儿要的是复数，而且不报错：那条配方/进度只是静默地不存在。"
   },
+  "26.1.2-common+": {
+    "since": "26.1.2",
+    "populated": true,
+    "note": "26.1.2 起的版本层：NetMusic、MCEF 与 Patchouli 在没有对应构件或不做该联动时共用的不可用门面。26.1.2 Fabric 与 26.2/26.3 双端挂这一层；26.1.2 NeoForge 保留实际联动源码，不挂。"
+  },
   "26.2+": {
     "since": "26.2",
     "populated": true,
     "note": "26.2 将 Item.use 的返回类型从 InteractionResultHolder<ItemStack> 改为 InteractionResult，并调整 tooltip 回调。只把 PhoneItem 拆到这一层，1.21+ 的其余代码继续共用。"
   },
-  "26.1.2-common+": {
-    "since": "26.1.2",
+  "26.1-neoforge+": {
+    "since": "26.1",
+    "loader": "NeoForge",
     "populated": true,
-    "note": "26.1.2 起的版本层：NetMusic、MCEF 与 Patchouli 在没有对应构件或不做该联动时共用的不可用门面。26.1.2 Fabric 与 26.2/26.3 双端挂这一层；26.1.2 NeoForge 保留实际联动源码，不挂。"
+    "note": "26.1 起 NeoForge 的条件物品模型属性 API。它同时依赖 Minecraft 版本与 NeoForge 事件，属于交集层，不能放进纯版本层或纯加载器层。"
+  },
+  "26.3+": {
+    "since": "26.3",
+    "populated": true,
+    "note": "26.3 起两个加载器共同使用的 26.x API 接缝。只放正文逐字相同、且已经在 NeoForge 与 Fabric 上分别编译通过的文件。"
   },
   "26.2-fabric": {
     "since": "26.2",
@@ -90,16 +101,11 @@
     "populated": true,
     "note": "26.2 的 NeoForge 专用版本层：按键事件、注册事件与终端发现都直接引用 NeoForge 类型，不能放进跨加载器的 26.2+ 层。"
   },
-  "26.3+": {
-    "since": "26.3",
+  "1.20.5+-fabric": {
+    "since": "1.20.5",
+    "loader": "Fabric",
     "populated": true,
-    "note": "26.3 将 Item.use 的返回类型从 InteractionResultHolder<ItemStack> 改为 InteractionResult，并调整 tooltip 回调。只把 PhoneItem 拆到这一层，1.21+ 的其余代码继续共用。"
-  },
-  "26.3-neoforge": {
-    "since": "26.3",
-    "loader": "NeoForge",
-    "populated": true,
-    "note": "26.3 的 NeoForge 专用版本层：按键事件、注册事件与终端发现都直接引用 NeoForge 类型，不能放进跨加载器的 26.3+ 层。"
+    "note": "1.20.5 起 Fabric 共用的网络桥与终端客户端状态。它们同时依赖 CustomPacketPayload / StreamCodec 的版本边界和 Fabric 网络 API 的加载器边界，只能放在交集层。"
   },
   "forge": {
     "loader": "Forge",
@@ -114,12 +120,6 @@
   "fabric": {
     "loader": "Fabric",
     "populated": true,
-    "note": "Fabric 各个 Minecraft 版本共用的代码。1.21.1-fabric 与 26.3-fabric 逐文件比对后，只把正文逐字相同、且两边都编译通过的代码搬进来；版本或加载器 API 有差异的仍留在各自平台。"
-  },
-  "fabric-1.20.5+": {
-    "since": "1.20.5",
-    "loader": "Fabric",
-    "populated": true,
-    "note": "Fabric 与 1.20.5+ 原版 API 的交集层。1.21.1-fabric 与 26.3-fabric 已逐文件比对，目前只放同时依赖 Fabric 网络 API 与 CustomPacketPayload 的共用代码。"
+    "note": "Fabric 各个 Minecraft 版本共用的代码。与版本轴那几层对称：那边是「同版本、三个加载器共用」，这边是「同加载器、各版本共用」。1.21.1 与 26.3 两个 Fabric 目标已逐字比对；只放正文相同、两边都已编译通过的文件。"
   }
 }

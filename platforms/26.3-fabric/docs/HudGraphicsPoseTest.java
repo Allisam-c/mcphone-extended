@@ -1,6 +1,5 @@
 package com.november.mcphone.platform.client.port;
 
-import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import org.joml.Matrix3x2f;
 import org.joml.Matrix3x2fStack;
@@ -10,7 +9,7 @@ import sun.misc.Unsafe;
  * 验证副手手机这类 HUD 绘制不会把缩放与平移留给后续原版 HUD。
  *
  * <p>26.3 Fabric 的 HUD 元素共用同一个提取器。这里只分配矩阵所需字段，
- * 不初始化窗口、图集或 GPU，走的仍是正式代码使用的 {@link GuiGraphics#withIsolatedPose}。
+ * 不初始化窗口、图集或 GPU，走的仍是正式代码使用的 {@link PhoneGraphics#withIsolatedPose}。
  */
 public final class HudGraphicsPoseTest {
     private static int checks;
@@ -31,7 +30,7 @@ public final class HudGraphicsPoseTest {
         if (!condition) throw new AssertionError(message);
     }
 
-    private static void drawLikePhone(GuiGraphics graphics) {
+    private static void drawLikePhone(PhoneGraphics graphics) {
         graphics.pose().pushPose();
         try {
             graphics.pose().translate(420, 280, 0);
@@ -58,14 +57,14 @@ public final class HudGraphicsPoseTest {
         var callerPose = new Matrix3x2f().translate(31, 17).scale(1.5f);
         graphics.pose().set(callerPose);
 
-        GuiGraphics.withIsolatedPose(graphics, HudGraphicsPoseTest::drawLikePhone);
+        PhoneGraphics.withIsolatedPose(graphics, HudGraphicsPoseTest::drawLikePhone);
         check(graphics.pose().equals(callerPose, 0.001f),
                 "手机绘制结束污染了后续 HUD 的平移与缩放");
         balanced(graphics);
 
         var expected = new IllegalStateException("绘制中断");
         try {
-            GuiGraphics.withIsolatedPose(graphics, phone -> {
+            PhoneGraphics.withIsolatedPose(graphics, phone -> {
                 drawLikePhone(phone);
                 throw expected;
             });
@@ -77,11 +76,11 @@ public final class HudGraphicsPoseTest {
                 "异常退出仍恢复后续 HUD 的矩阵");
         balanced(graphics);
 
-        GuiGraphics.withIsolatedPose(graphics, outer -> {
-            GuiGraphics.withIsolatedPose(graphics, HudGraphicsPoseTest::drawLikePhone);
+        PhoneGraphics.withIsolatedPose(graphics, outer -> {
+            PhoneGraphics.withIsolatedPose(graphics, HudGraphicsPoseTest::drawLikePhone);
             check(graphics.pose().equals(callerPose, 0.001f),
                     "嵌套 HUD 绘制恢复父级矩阵");
-            GuiGraphics.withIsolatedPose(graphics, HudGraphicsPoseTest::drawLikePhone);
+            PhoneGraphics.withIsolatedPose(graphics, HudGraphicsPoseTest::drawLikePhone);
             check(graphics.pose().equals(callerPose, 0.001f),
                     "连续嵌套 HUD 绘制仍恢复父级矩阵");
         });

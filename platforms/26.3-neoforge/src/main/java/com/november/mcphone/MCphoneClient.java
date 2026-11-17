@@ -5,7 +5,6 @@ import com.november.mcphone.core.client.AppHotkeyHandler;
 import com.november.mcphone.core.client.ClientConfig;
 import com.november.mcphone.core.client.MCphoneKeyBindings;
 import com.november.mcphone.core.client.PhoneHud;
-import com.november.mcphone.core.client.PhoneItemProperties;
 import com.november.mcphone.core.client.PhoneContainerScreen;
 import com.november.mcphone.core.client.PhoneKeyHandler;
 import com.november.mcphone.core.client.PhoneScreenOnSync;
@@ -20,7 +19,7 @@ import com.november.mcphone.feature.camera.client.CameraHandler;
 import com.november.mcphone.feature.chat.client.ChatImageCache;
 import com.november.mcphone.feature.chat.client.ChatImageSender;
 import com.november.mcphone.feature.chat.client.ChatClientEvents;
-import com.november.mcphone.feature.chat.client.ChatClientLifecycle;
+import com.november.mcphone.feature.chat.client.ChatGroupEvents;
 import com.november.mcphone.feature.chat.net.ChatClientCache;
 import com.november.mcphone.feature.music.client.DiscBayScreen;
 import com.november.mcphone.feature.music.client.DiscClientCache;
@@ -33,7 +32,6 @@ import com.november.mcphone.feature.store.net.StoreClientCache;
 import com.november.mcphone.feature.clock.client.PlayTime;
 import com.november.mcphone.feature.terminal.client.TerminalSlotScreen;
 import net.minecraft.client.Minecraft;
-import net.minecraft.resources.Identifier;
 import net.minecraft.server.packs.resources.ResourceManagerReloadListener;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.IEventBus;
@@ -46,7 +44,6 @@ import net.neoforged.fml.event.lifecycle.FMLClientSetupEvent;
 import net.neoforged.neoforge.client.event.ClientPlayerNetworkEvent;
 import net.neoforged.neoforge.client.event.AddClientReloadListenersEvent;
 import net.neoforged.neoforge.client.event.RegisterMenuScreensEvent;
-import net.neoforged.neoforge.client.event.RegisterRangeSelectItemModelPropertyEvent;
 import net.neoforged.neoforge.client.gui.ConfigurationScreen;
 import net.neoforged.neoforge.client.gui.IConfigScreenFactory;
 import net.neoforged.neoforge.common.NeoForge;
@@ -62,8 +59,18 @@ public class MCphoneClient {
         modEventBus.addListener(ClientConfig::onReload);
         container.registerConfig(ModConfig.Type.CLIENT, ClientConfig.SPEC);
 
+        // Install the handshake and RPC routers before the first login. A
+        // handshake pushed during login is lost if these are installed later.
+        com.november.mcphone.core.script.client.ClientHandshake.install();
+        com.november.mcphone.core.script.client.ScriptCall.install();
+
+        NeoForge.EVENT_BUS.addListener(
+                (net.neoforged.neoforge.client.event.RegisterClientCommandsEvent event) ->
+                        com.november.mcphone.core.script.client.ScriptClientCommand.register(
+                                event.getDispatcher(), (source, message) -> source.sendSuccess(() -> message, false)));
+
         modEventBus.addListener(MCphoneKeyBindings::register);
-        modEventBus.addListener(PhoneItemProperties::register);
+        modEventBus.addListener(com.november.mcphone.core.client.PhoneItemProperties::register);
 
         // 副手 HUD 那一层。插在原版战利品条之后：玩法 HUD 之上，F3 与聊天框之下
         modEventBus.addListener(PhoneHud::onRegisterLayers);
@@ -95,6 +102,7 @@ public class MCphoneClient {
 
         // 冷却期里点的那几张图排着，每 tick 看一眼闸开了没有；队伍空的时候第一行就返回
         ClientTicks.onEndTick(ChatImageSender::tick);
+        ClientTicks.onEndTick(com.november.mcphone.platform.client.PlayerSkins::tick);
 
         // 一首停下来时带停止原因通知控制器，见 LocalPlayback.Ending
         LocalPlayback.setEndListener(MusicController::onTrackEnded);
@@ -110,7 +118,9 @@ public class MCphoneClient {
                     PhoneHud.onWorldLeave();
                     PhoneScreenOnSync.forget();
 
-                    ChatClientLifecycle.disconnect();
+                    com.november.mcphone.core.script.client.ClientHandshake.clear();
+                    com.november.mcphone.core.script.client.ScriptCall.clear();
+                    com.november.mcphone.feature.chat.client.ChatClientLifecycle.disconnect();
                     NotesClientCache.clear();
                     StoreClientCache.clear();
                     PhoneScreenRegistry.unloadWorld();
@@ -147,7 +157,7 @@ public class MCphoneClient {
                 PhoneScreenRegistry::enforcePurchases);
 
         ChatClientCache.setMessageListener(ChatClientEvents::onMessage);
-        com.november.mcphone.feature.chat.client.ChatGroupEvents.install();
+        ChatGroupEvents.install();
         ChatClientCache.setImageListener(ChatImageCache::accept);
     }
 
@@ -161,12 +171,12 @@ public class MCphoneClient {
      */
     @SubscribeEvent
     static void onRegisterReloadListeners(AddClientReloadListenersEvent event) {
-        event.addListener(Identifier.fromNamespaceAndPath(MCphone.MODID, "client_reload"),
+        event.addListener(net.minecraft.resources.Identifier.fromNamespaceAndPath("mcphone", "client_cache"),
                 (ResourceManagerReloadListener) manager -> {
-            PhoneSkin.clearCache();
-            AppTextures.clearCache();
-            CameraFlash.dispose();
-        });
+                    PhoneSkin.clearCache();
+                    AppTextures.clearCache();
+                    CameraFlash.dispose();
+                });
     }
 
     /** 把菜单类型与界面类绑定。不注册的话，服务端 openMenu 后客户端什么都不显示。 */

@@ -5,8 +5,8 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.item.ItemStack;
 import net.neoforged.neoforge.capabilities.Capabilities;
 import net.neoforged.neoforge.event.tick.PlayerTickEvent;
-import net.neoforged.neoforge.transfer.energy.EnergyHandler;
 import net.neoforged.neoforge.transfer.access.ItemAccess;
+import net.neoforged.neoforge.transfer.energy.EnergyHandler;
 import net.neoforged.neoforge.transfer.transaction.Transaction;
 
 /**
@@ -97,18 +97,20 @@ public final class TerminalCharger {
         ItemStack terminal = TerminalSlot.get(player);
         if (terminal.isEmpty()) return;
 
-        // 没挂能量能力的（Tom's 的终端、以及任何不用电的东西）到这儿就结束了
-        EnergyHandler energy = terminal.getCapability(
-                Capabilities.Energy.ITEM, ItemAccess.forStack(terminal));
+        // 26.3 的能量能力改成 ResourceHandler；ItemAccess 负责把物品堆包成可写的上下文。
+        ItemAccess access = ItemAccess.forStack(terminal);
+        EnergyHandler energy = access.getCapability(Capabilities.Energy.ITEM);
         if (energy == null) return;
 
-        int missing = energy.getCapacityAsInt() - energy.getAmountAsInt();
+        long missing = energy.getCapacityAsLong() - energy.getAmountAsLong();
         if (missing <= 0) return;
 
         try (Transaction transaction = Transaction.openRoot()) {
-            int inserted = energy.insert(missing, transaction);
-            transaction.commit();
-            if (inserted > 0) TerminalSlot.markChanged(player);
+            int accepted = energy.insert((int) Math.min(Integer.MAX_VALUE, missing), transaction);
+            if (accepted > 0) {
+                transaction.commit();
+                TerminalSlot.markChanged(player);
+            }
         }
     }
 }

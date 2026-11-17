@@ -8,9 +8,9 @@
     "${mod_authors}"
   ],
   "contact": {
-    "homepage": "${mod_repo_url}",
-    "issues": "${mod_repo_url}/issues",
-    "sources": "${mod_repo_url}"
+    "homepage": "https://github.com/november521/mcphone",
+    "issues": "https://github.com/november521/mcphone/issues",
+    "sources": "https://github.com/november521/mcphone"
   },
   "license": "${mod_license}",
   "environment": "*",

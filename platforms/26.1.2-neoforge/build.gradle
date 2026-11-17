@@ -77,7 +77,18 @@ group = mod_group_id
 // 加一个目标、加一层，都只改 JSON，这几行不用动。
 apply from: "${projectDir}/../../gradle/mcphone-layers.gradle"
 
-sourceSets.main.java.srcDir '../../shared/src/main/java'
+// 26.1+ 的 NeoForge 条件物品模型属性住在交集层，旧的
+// ItemProperties 实现仍在 shared/ 给老目标使用。这里生成一份去掉旧实现
+// 的共享源目录，避免同名类同时进入编译。
+def sharedJavaWithoutLegacyItemProperties = tasks.register('syncSharedJavaWithoutLegacyItemProperties', Sync) {
+    from('../../shared/src/main/java') {
+        exclude 'com/november/mcphone/core/client/PhoneItemProperties.java'
+    }
+    into(layout.buildDirectory.dir('generated/shared-java-without-legacy-item-properties'))
+}
+def sharedJavaWithoutLegacyItemPropertiesDir =
+        layout.buildDirectory.dir('generated/shared-java-without-legacy-item-properties')
+sourceSets.main.java.srcDir(sharedJavaWithoutLegacyItemPropertiesDir)
 mcphoneLayers.each { layer ->
     if (layer.javaDir.isDirectory()) {
         sourceSets.main.java.srcDir layer.javaDir
@@ -104,6 +115,13 @@ sourceSets.main.resources {
     exclude("**/*.bbmodel") // BlockBench project files
 
     exclude("src/generated/**/.cache") // datagen cache files
+}
+
+// 25.1 起配方成分的 JSON 形态从 {"item": ...} 换成资源字符串。
+// 这些文件必须在共享层之后读取，保留平台副本；否则 Gradle 会把同路径
+// 两份资源判成重复错误。Minecraft 自己的资源包优先级也是先读到的胜出。
+tasks.named('processResources', ProcessResources).configure {
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
 }
 
 repositories {
@@ -405,6 +423,12 @@ apply from: "${projectDir}/../../gradle/mcphone-sign.gradle"
 
 // 26.1 原版改名在编译入口绑定，避免复制共用业务和附属接口。
 apply from: '../../gradle/mcphone-port-bindings.gradle'
+tasks.named('bindMinecraftApiNames').configure {
+    dependsOn sharedJavaWithoutLegacyItemProperties
+}
+tasks.named('compileJava').configure {
+    dependsOn sharedJavaWithoutLegacyItemProperties
+}
 
 // 开发、测试与发行共用已验收的私有 Rhino 依赖。
 apply from: '../../gradle/mcphone-engine-dependency.gradle'

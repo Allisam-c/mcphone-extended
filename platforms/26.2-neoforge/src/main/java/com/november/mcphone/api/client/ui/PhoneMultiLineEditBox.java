@@ -105,4 +105,9 @@ public final class PhoneMultiLineEditBox extends MultiLineEditBox {
     public boolean mouseClicked(double mouseX, double mouseY, int pageButton) {
         return EditBoxes.click(this, mouseX, mouseY, pageButton);
     }
+
+    public boolean mouseDragged(double mouseX, double mouseY, int pageButton,
+                                double dragX, double dragY) {
+        return EditBoxes.drag(this, mouseX, mouseY, pageButton, dragX, dragY);
+    }
 }

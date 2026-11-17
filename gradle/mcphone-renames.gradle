@@ -42,6 +42,8 @@ abstract class NameRenamedMountTask extends DefaultTask {
     @InputFiles @PathSensitive(PathSensitivity.RELATIVE)
     abstract ConfigurableFileCollection getJavaFiles()
     @OutputDirectory abstract DirectoryProperty getGeneratedDir()
+    /** 仅供显式复验已验收的生成源；正常构建始终走完整校验。 */
+    @Input abstract Property<Boolean> getReuseGenerated()
 
     /**
      * 字符串与字符字面量。【改名只发生在它之外】。
@@ -140,8 +142,8 @@ abstract class NameRenamedMountTask extends DefaultTask {
                     "这时候挂进来的会是【一份没改名也没东西的副本】，编得过但全是错的。")
         }
         def outRoot = generatedDir.get().asFile
-        outRoot.deleteDir()
         outRoot.mkdirs()
+        def expectedOutputs = new LinkedHashSet<String>()
 
         def tAlt = NameRenamedMountTask.typeAlt(tPairs.keySet())
         def mAlt = NameRenamedMountTask.methodAlt(mPairs.keySet())
@@ -193,8 +195,25 @@ abstract class NameRenamedMountTask extends DefaultTask {
                 selected[relative] = [f, owner[0], owner[2]]
             }
         }
+        def selectedEntries = selected.entrySet().toSorted { a, b -> a.key <=> b.key }
+        int expected = selectedEntries.count { entry ->
+            !excluded.contains(entry.value[1] + '/' + entry.key)
+        }
 
-        selected.entrySet().toSorted { a, b -> a.key <=> b.key }.each { entry ->
+        def generatedFiles = []
+        outRoot.eachFileRecurse(groovy.io.FileType.FILES) { File file ->
+            if (file.name.endsWith('.java')) generatedFiles << file
+        }
+        if (reuseGenerated.get()) {
+            if (generatedFiles.size() == expected) {
+                logger.lifecycle("显式复用已生成的改名源：${generatedFiles.size()} 个文件，跳过重复扫描")
+                return
+            }
+            logger.lifecycle("改名源数量为 ${generatedFiles.size()}，预期 ${expected}；" +
+                    "不满足复用条件，执行完整校验")
+        }
+
+        selectedEntries.each { entry ->
             def where = entry.value[1] + '/' + entry.key
             if (excluded.contains(where)) {
                 skipped++
@@ -265,10 +284,23 @@ abstract class NameRenamedMountTask extends DefaultTask {
             }
 
             def dst = new File(outRoot, where)
+            expectedOutputs << dst.canonicalPath
             dst.parentFile.mkdirs()
             // 显式按 UTF-8 写字节：File.text = '...' 走平台默认编码，
             // 而这一支源文件里全是中文注释，zh-CN 的 Windows 上会写坏。
-            dst.bytes = dstText.getBytes('UTF-8')
+            byte[] bytes = dstText.getBytes('UTF-8')
+            if (!dst.isFile() || !java.util.Arrays.equals(dst.bytes, bytes)) {
+                dst.bytes = bytes
+            }
+        }
+
+        // Do not rewrite all ~600 files on every incremental compile. On this
+        // Windows host each file write is scanned and can take about a second.
+        // Keep matching outputs and remove only stale generated Java files.
+        outRoot.eachFileRecurse(groovy.io.FileType.FILES) { File existing ->
+            if (existing.name.endsWith('.java') && !expectedOutputs.contains(existing.canonicalPath)) {
+                existing.delete()
+            }
         }
 
         if (alreadyNew) {
@@ -289,7 +321,6 @@ abstract class NameRenamedMountTask extends DefaultTask {
         }
         // 不变量 5：【少挂了东西必须说话】。漏一个目录的症状是「少编了几个文件」——
         // 不报错、不红，只是那个类在游戏里不存在。
-        int expected = selected.size() - skipped
         if (expected == 0 || copied != expected) {
             throw new GradleException(
                     "挂载源应该有 ${expected} 个 java 文件，实际复制了 ${copied} 个" +
@@ -327,6 +358,8 @@ ext.mcphoneRegisterRenamedMount = { String taskName, Map<String, File> sourceMou
         task.excludedMountPaths.set(excludedMountPaths)
         task.requireAllRulesHit.set(requireAllRulesHit)
         task.generatedDir.set(outputDirectory)
+        task.reuseGenerated.set(providers.gradleProperty('mcphoneReuseGeneratedRenames')
+                .map { it.toBoolean() }.orElse(false))
     }
 }
 
@@ -338,13 +371,22 @@ ext.mcphoneRegisterRenamedMount = { String taskName, Map<String, File> sourceMou
  *
  * @param javaSrc 目标 source set 的 java
  * @param mounts  挂载名（产物里的一层目录名，用源目录在仓库里的相对路径）→ 源目录
+ * @param verbatimMounts 已经按目标名字写成、只需原样挂载的目录（交集层）
+ * @param excludedMountPaths 不进入目标源码集的挂载文件（挂载名 + 相对路径）
  */
 ext.mcphoneMountSharedJava = { SourceDirectorySet javaSrc, Map<String, File> mounts,
+                               Map<String, File> verbatimMounts = [:],
                                Collection<String> excludedMountPaths = List.of() ->
     def table = ext.mcphoneNameRenames
     def tPairs = (table?.typeRenames ?: [:]) as LinkedHashMap
     def mPairs = (table?.methodRenames ?: [:]) as LinkedHashMap
     def pPairs = (table?.packageRenames ?: [:]) as LinkedHashMap
+    def overlap = mounts.keySet().intersect(verbatimMounts.keySet())
+    if (overlap) {
+        throw new GradleException(
+                "同一份共用源既要求改名又要求原样挂载：${overlap.join('、')}。\n" +
+                "两条路只能选一条；否则 source set 里会出现两份同名类，或者改名任务会漏验。")
+    }
     if (tPairs.isEmpty() && mPairs.isEmpty() && pPairs.isEmpty()) {
         if (!excludedMountPaths.isEmpty()) {
             throw new GradleException(
@@ -352,11 +394,37 @@ ext.mcphoneMountSharedJava = { SourceDirectorySet javaSrc, Map<String, File> mou
                     "原样挂载无法按文件剔除可选联动；先补一条改名规则，或不要声明这些可选源码。")
         }
         mounts.each { name, dir -> javaSrc.srcDir dir }
-        logger.lifecycle("共用代码原样挂载：${mounts.size()} 个目录（改名表对这支的 Minecraft 不生效）")
+        verbatimMounts.each { name, dir -> javaSrc.srcDir dir }
+        logger.lifecycle("共用代码原样挂载：${mounts.size() + verbatimMounts.size()} 个目录" +
+                "（改名表对这支的 Minecraft 不生效）")
         return
     }
     def present = mounts.findAll { name, dir -> dir != null && dir.isDirectory() }
+    def presentVerbatim = verbatimMounts.findAll { name, dir -> dir != null && dir.isDirectory() }
+    presentVerbatim.each { name, dir ->
+        def excludedForMount = excludedMountPaths
+                .findAll { it.startsWith(name + '/') }
+                .collect { it.substring(name.length() + 1) }
+        if (excludedForMount.isEmpty()) {
+            javaSrc.srcDir dir
+            return
+        }
+        def taskSuffix = name.replaceAll('[^A-Za-z0-9]+', '_')
+        def filteredDir = layout.buildDirectory.dir("generated/verbatim-mounts/${taskSuffix}")
+        def filterTask = tasks.register("mountVerbatim${taskSuffix.capitalize()}", Sync) {
+            from(dir) {
+                exclude excludedForMount
+            }
+            into(filteredDir)
+        }
+        javaSrc.srcDir(filteredDir)
+        tasks.withType(JavaCompile).configureEach { dependsOn filterTask }
+    }
+    if (presentVerbatim) {
+        logger.lifecycle("已按 26.x 名字写成的交集层原样挂载：${presentVerbatim.keySet().join('、')}")
+    }
     if (present.isEmpty()) {
+        if (presentVerbatim) return
         throw new GradleException(
                 "mcphoneMountSharedJava 一个挂载目录都没收到，而改名表是非空的。" +
                 "要么挂载条件反了，要么仓库结构被挪了 —— 两种都不能静默挂一个空集。")
@@ -376,6 +444,8 @@ ext.mcphoneMountSharedJava = { SourceDirectorySet javaSrc, Map<String, File> mou
         task.excludedMountPaths.set(excludedMountPaths)
         task.requireAllRulesHit.set(true)
         task.generatedDir.set(layout.buildDirectory.dir('generated/name-renames'))
+        task.reuseGenerated.set(providers.gradleProperty('mcphoneReuseGeneratedRenames')
+                .map { it.toBoolean() }.orElse(false))
     }
     javaSrc.srcDir(t.map { it.generatedDir })
     // 不只 compileJava：任何会读 java 源码集的任务（sourcesJar 之类）拿到没生成的

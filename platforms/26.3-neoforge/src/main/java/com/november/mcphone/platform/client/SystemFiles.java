@@ -2,7 +2,6 @@ package com.november.mcphone.platform.client;
 
 import com.mojang.blaze3d.Blaze3D;
 
-import java.net.URI;
 import java.nio.file.Path;
 
 /**
@@ -39,7 +38,8 @@ public final class SystemFiles {
         Blaze3D.openPath(dir);
     }
 
+    /** Open a URI with the platform's default handler. */
     public static void openUri(String uri) {
-        Blaze3D.openUri(URI.create(uri));
+        Blaze3D.openUri(java.net.URI.create(uri));
     }
 }

@@ -2,7 +2,6 @@ package com.november.mcphone.platform.client;
 
 import com.mojang.blaze3d.Blaze3D;
 
-import java.net.URI;
 import java.nio.file.Path;
 
 /**
@@ -11,7 +10,7 @@ import java.nio.file.Path;
  * <h2>这一支为什么与另两支不是一份字</h2>
  *
  * 另两支走 {@code Util.getPlatform().openPath(dir)}。26.x 上这句【整个不成立了】：
- * {@code net.minecraft.util.Util} 整类换包到 {@code net.minecraft.util.Util}（名字没变），
+ * {@code net.minecraft.Util} 整类换包到 {@code net.minecraft.util.Util}（名字没变），
  * 而 {@code Util.OS} 退化成一个只剩 {@code telemetryName()} 的空壳 ——
  * {@code openFile} 与 {@code openPath} 都不在那个枚举上了。
  *
@@ -39,7 +38,8 @@ public final class SystemFiles {
         Blaze3D.openPath(dir);
     }
 
+    /** Open a URI with the platform's default handler. */
     public static void openUri(String uri) {
-        Blaze3D.openUri(URI.create(uri));
+        Blaze3D.openUri(java.net.URI.create(uri));
     }
 }

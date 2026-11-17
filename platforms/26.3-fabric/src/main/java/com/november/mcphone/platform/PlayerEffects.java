@@ -7,16 +7,24 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.effect.MobEffect;
 import net.minecraft.world.effect.MobEffectInstance;
 
-/** 药水效果的查询与授予。 */
+/**
+ * Mob effect lookup and timed grants for 26.3.
+ *
+ * <p>The instance carries its own duration, so authorization cannot outlive
+ * the effect. Only the server intent applier calls this seam.
+ */
 public final class PlayerEffects {
-    private PlayerEffects() {}
 
+    private PlayerEffects() {
+    }
+
+    /** Whether the current server registry contains this effect. */
     public static boolean available(Identifier effectId) {
         return holder(effectId) != null;
     }
 
-    public static boolean give(ServerPlayer player, Identifier effectId,
-                               int durationTicks, int amplifier) {
+    /** Give one timed effect, or return false when the id is unknown. */
+    public static boolean give(ServerPlayer player, Identifier effectId, int durationTicks, int amplifier) {
         Holder<MobEffect> holder = holder(effectId);
         if (holder == null) return false;
         return player.addEffect(new MobEffectInstance(holder, durationTicks, amplifier));

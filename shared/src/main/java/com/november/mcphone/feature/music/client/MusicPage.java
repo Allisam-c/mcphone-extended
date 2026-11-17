@@ -1,6 +1,7 @@
 package com.november.mcphone.feature.music.client;
 
 import com.november.mcphone.core.client.ClientConfig;
+import com.november.mcphone.platform.client.Draw;
 import com.november.mcphone.platform.client.DiscSongs;
 import com.november.mcphone.platform.client.SystemFiles;
 import com.november.mcphone.core.client.FontPalette;
@@ -202,7 +203,7 @@ public final class MusicPage {
         }
 
         ItemStack disc = DiscClientCache.getDisc();
-        GuiUtil.drawItemIcon(g, disc, x + 1, y + 1, ITEM_SIZE);
+        Draw.renderItem(g, disc, x + 1, y + 1);
 
         boolean playing = DiscClientCache.isPlaying(gameTime());
 
@@ -243,7 +244,7 @@ public final class MusicPage {
     /** 没有世界时返回 Long.MAX_VALUE：判据是「现在 < 终点才算在放」，给 0 会让唱片永远显示在放 */
     private static long gameTime() {
         var mc = net.minecraft.client.Minecraft.getInstance();
-        return mc.level == null ? Long.MAX_VALUE : mc.level.getGameTime();
+        return mc.level == null ? Long.MAX_VALUE : mc.level.getLevelData().getGameTime();
     }
 
     /** 优先曲子的名称（"C418 - cat"），取不到才退回物品名 —— 两支的取法见 {@link DiscSongs}。 */

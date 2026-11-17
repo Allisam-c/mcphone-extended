@@ -63,6 +63,8 @@ group = mod_group_id
 //
 // 层怎么解析、挂哪几层，全在 gradle/mcphone-layers.gradle 那一份里；这一支照旧
 // apply 它，因为它顺手把「targets.json 里有没有 project == 本目录这一条」也验了。
+// 26.1.2/26.2 共用 Phone* 适配层；26.3 使用直接绑定 GuiGraphicsExtractor 的表。
+ext.mcphoneNameRenamesFile = 'versions/name-renames-26.2.json'
 apply from: "${projectDir}/../../gradle/mcphone-layers.gradle"
 
 // 按目标改名挂载。表在 versions/name-renames.json，机制在 gradle/mcphone-renames.gradle。
@@ -93,7 +95,7 @@ if (mountSharedSources) {
             (['shared/src/main/java': new File(repoRoot, 'shared/src/main/java')] +
              mcphoneLayers.collectEntries { layer ->
                  [("${layer.relDir}/src/main/java"): layer.javaDir]
-             }), excludedOptionalSources)
+             }), [:], excludedOptionalSources)
 
     sourceSets.main.resources {
         srcDir('../../shared/src/main/resources')
