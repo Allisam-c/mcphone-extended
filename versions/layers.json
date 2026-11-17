@@ -73,10 +73,10 @@
     "populated": true,
     "note": "26.2 将 Item.use 的返回类型从 InteractionResultHolder<ItemStack> 改为 InteractionResult，并调整 tooltip 回调。只把 PhoneItem 拆到这一层，1.21+ 的其余代码继续共用。"
   },
-  "26.2-common+": {
-    "since": "26.2",
+  "26.1.2-common+": {
+    "since": "26.1.2",
     "populated": true,
-    "note": "26.2 与 26.3 共用的版本层：NetMusic、MCEF 与 Patchouli 在 26.x 都没有可用构件，这三个不可用门面逐字相同，因此不留在两个版本层里各抄一份。"
+    "note": "26.1.2 起的版本层：NetMusic、MCEF 与 Patchouli 在没有对应构件或不做该联动时共用的不可用门面。26.1.2 Fabric 与 26.2/26.3 双端挂这一层；26.1.2 NeoForge 保留实际联动源码，不挂。"
   },
   "26.2-fabric": {
     "since": "26.2",

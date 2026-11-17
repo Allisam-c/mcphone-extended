@@ -205,7 +205,7 @@
       "1.20.5+",
       "1.21+",
       "neoforge",
-      "26.2-common+",
+      "26.1.2-common+",
       "26.2+",
       "26.2-neoforge"
     ]
@@ -227,7 +227,7 @@
       "1.21+",
       "fabric",
       "fabric-1.20.5+",
-      "26.2-common+",
+      "26.1.2-common+",
       "26.2+",
       "26.2-fabric"
     ]
@@ -269,7 +269,7 @@
       "1.20.5+",
       "1.21+",
       "neoforge",
-      "26.2-common+",
+      "26.1.2-common+",
       "26.3+",
       "26.3-neoforge"
     ]
@@ -291,7 +291,7 @@
       "1.21+",
       "fabric",
       "fabric-1.20.5+",
-      "26.2-common+",
+      "26.1.2-common+",
       "26.3+",
       "26.2-fabric"
     ]
@@ -339,23 +339,21 @@
   "26.1.2-fabric": {
     "minecraft": "26.1.2",
     "loader": "Fabric",
-    "loader_version": null,
+    "loader_version": "0.19.5",
     "server_config_sync": true,
     "mappings": "official",
     "java": 25,
-    "gradle": "9.7.1",
+    "gradle": "9.8.2",
     "project": "platforms/26.1.2-fabric",
-    "buildable": false,
-    "note": "本轮仅移植 NeoForge；此加载器尚未开始，版本和构建工具占位值未验证。",
+    "buildable": true,
+    "note": "2026-11-13 使用 Fabric Loom 1.19.3、Gradle 9.8.2、Fabric Loader 0.19.5、Fabric API 0.155.3+26.1.2、Java 25 完成完整 build：179 个任务、140 份断言测试全部通过。26.1.2 原生 API 与 Fabric 加载器接缝在平台内汇合，26.x 不可用联动门面统一由 26.1.2-common+ 层提供；相机取景框按 26.1.2 的 Gui.extractRenderState 尾部注入。产物 mcphone-1.12.0.jar 为 4,924,389 字节，SHA-256 3248EEAC1F42BA322DA12609AB8B19E62D290083BFFF61CF2904340975551D91。专用服务器已加载 51 个模组并完成 MCphone 初始化后停在 EULA；客户端加载 59 个模组、完成资源与音效初始化，13 个 App 注册成功且无 MCphone 异常，未进入世界逐页验收。",
     "layers": [
       "1.20.3+",
       "1.20.5+",
       "1.21+",
-      "fabric"
-    ],
-    "unverified": [
-      "loader_version",
-      "gradle"
+      "fabric",
+      "fabric-1.20.5+",
+      "26.1.2-common+"
     ]
   }
 }

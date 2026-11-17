@@ -31,7 +31,7 @@ Minecraft 运行范围保持 `[26.1.2]`；NeoForge 运行范围为 `[26.1.2.100,
 ### 1. 构建与版本隔离
 
 - 新建 `platforms/26.1.2-neoforge/` 的独立工程、wrapper、资源和模组元数据。
-- `versions/targets.json` 按仓库要求补齐 26.1.2 的 Forge／NeoForge／Fabric 三行，其他两个加载器仍为未开始的占位项。
+- `versions/targets.json` 按仓库要求补齐 26.1.2 的 Forge／NeoForge／Fabric 三行。本文记录的是 NeoForge 首轮；Fabric 已于 2026-11-13 补齐，详见 `docs/PORT-26.1.2-FABRIC.md`。Forge 仍按仓库策略不做。
 - CI 和 Release 的 JDK 安装清单增加 Java 25，原有 17／21 保留。
 - `versions/26.1-api-names.json` 仅为新目标声明纯名称及门面类型绑定，例如 `ResourceLocation → Identifier`、旧 GUI 类型到本模组版本门面。
 - `gradle/mcphone-port-bindings.gradle` 把源代码绑定到忽略的 `build/generated/` 目录；不改注释、字符串、字符或文本块。重复类型、越界路径、缺少显式覆盖实现会报错。
