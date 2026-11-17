@@ -9,6 +9,9 @@ import net.minecraft.resources.ResourceLocation;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.awt.Color;
+import java.awt.Graphics2D;
+import java.awt.RenderingHints;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.io.InputStream;
@@ -54,8 +57,43 @@ public final class WallpaperStore {
             String displayName,
             ResourceLocation texture,
             int imageWidth,
-            int imageHeight
+            int imageHeight,
+            BufferedImage preview
     ) {}
+
+    public record CoverCrop(int x, int y, int width, int height) {}
+
+    /** Source rectangle shared by the normal wallpaper and the folder's sampled wallpaper. */
+    public static CoverCrop coverCrop(int imageWidth, int imageHeight, int screenWidth, int screenHeight) {
+        float scale = Math.max((float) screenWidth / imageWidth, (float) screenHeight / imageHeight);
+        int width = Math.max(1, (int) (screenWidth / scale));
+        int height = Math.max(1, (int) (screenHeight / scale));
+        return new CoverCrop((imageWidth - width) / 2, (imageHeight - height) / 2, width, height);
+    }
+
+    public static BufferedImage sampleScreen(WallpaperEntry wallpaper, int screenWidth, int screenHeight,
+                                             int width, int height, int background) {
+        BufferedImage output = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
+        Graphics2D graphics = output.createGraphics();
+        try {
+            graphics.setColor(new Color(background));
+            graphics.fillRect(0, 0, width, height);
+            if (wallpaper == null) return output;
+            CoverCrop crop = coverCrop(wallpaper.imageWidth(), wallpaper.imageHeight(), screenWidth, screenHeight);
+            BufferedImage source = wallpaper.preview();
+            double scaleX = (double) source.getWidth() / wallpaper.imageWidth();
+            double scaleY = (double) source.getHeight() / wallpaper.imageHeight();
+            int left = (int) Math.floor(crop.x() * scaleX);
+            int top = (int) Math.floor(crop.y() * scaleY);
+            int right = Math.min(source.getWidth(), (int) Math.ceil((crop.x() + crop.width()) * scaleX));
+            int bottom = Math.min(source.getHeight(), (int) Math.ceil((crop.y() + crop.height()) * scaleY));
+            graphics.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+            graphics.drawImage(source, 0, 0, width, height, left, top, right, bottom, null);
+            return output;
+        } finally {
+            graphics.dispose();
+        }
+    }
 
     //  扫描 & 加载
 
@@ -126,7 +164,7 @@ public final class WallpaperStore {
         // ---- 文件没了的：释放贴图再摘掉 ----
         WALLPAPERS.removeIf(entry -> {
             if (onDisk.contains(entry.fileName())) return false;
-            Minecraft.getInstance().getTextureManager().release(entry.texture());
+            release(entry);
             LOGGER.debug("壁纸已移除: {}", entry.fileName());
             return true;
         });
@@ -151,9 +189,7 @@ public final class WallpaperStore {
 
     /** 目录整个没了的情况：贴图一并释放，否则那几张显存永远留着 */
     private static void dropAll() {
-        for (WallpaperEntry e : WALLPAPERS) {
-            Minecraft.getInstance().getTextureManager().release(e.texture());
-        }
+        WALLPAPERS.forEach(WallpaperStore::release);
         WALLPAPERS.clear();
     }
 
@@ -195,12 +231,35 @@ public final class WallpaperStore {
             var dynTex = Textures.dynamicTexture(() -> texKey, nativeImage);
             Minecraft.getInstance().getTextureManager().register(texLoc, dynTex);
 
-            WALLPAPERS.add(new WallpaperEntry(fileName, displayName, texLoc, imgW, imgH));
+            WALLPAPERS.add(new WallpaperEntry(fileName, displayName, texLoc, imgW, imgH, createPreview(awtImage)));
             LOGGER.debug("已加载壁纸: {} ({}×{})", fileName, imgW, imgH);
 
         } catch (IOException e) {
             LOGGER.warn("加载壁纸失败: {} - {}", fileName, e.getMessage());
         }
+    }
+
+    private static void release(WallpaperEntry entry) {
+        var textures = Minecraft.getInstance().getTextureManager();
+        textures.release(entry.texture());
+    }
+
+    private static BufferedImage createPreview(BufferedImage original) {
+        int longSide = Math.max(original.getWidth(), original.getHeight());
+        if (longSide <= 480) return original;
+
+        double scale = 480.0 / longSide;
+        int width = Math.max(1, (int) Math.round(original.getWidth() * scale));
+        int height = Math.max(1, (int) Math.round(original.getHeight() * scale));
+        BufferedImage preview = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
+        Graphics2D graphics = preview.createGraphics();
+        try {
+            graphics.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+            graphics.drawImage(original, 0, 0, width, height, null);
+        } finally {
+            graphics.dispose();
+        }
+        return preview;
     }
 
     //  导入

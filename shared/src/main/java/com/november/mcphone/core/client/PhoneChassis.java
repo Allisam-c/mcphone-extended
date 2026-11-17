@@ -80,18 +80,14 @@ public final class PhoneChassis {
         WallpaperStore.WallpaperEntry wp = WallpaperStore.findEntry(wpName);
 
         if (wp == null) {
-            g.fill(phoneLeft, phoneTop,
-                    phoneLeft + screenW, phoneTop + screenH,
-                    PhoneTheme.COLOR_SCREEN_BG);
+            DefaultWallpaper.forScreen(screenW, screenH).draw(g, phoneLeft, phoneTop, screenW, screenH);
             return;
         }
 
         // 按 cover 方式等比缩放：覆盖整个屏幕，超出部分居中裁剪
         int texW = wp.imageWidth();
         int texH = wp.imageHeight();
-        float s = Math.max((float) screenW / texW, (float) screenH / texH);
-        int srcW = (int) (screenW / s);
-        int srcH = (int) (screenH / s);
+        WallpaperStore.CoverCrop crop = WallpaperStore.coverCrop(texW, texH, screenW, screenH);
 
         // 参数顺序按 GuiGraphics 的 11 参重载：
         //   (贴图, x, y, 目标宽, 目标高, u, v, 源区宽, 源区高, 纹理宽, 纹理高)
@@ -100,8 +96,7 @@ public final class PhoneChassis {
         GuiUtil.drawTexture(g, wp.texture(),
                 phoneLeft, phoneTop,
                 screenW, screenH,
-                (texW - srcW) / 2, (texH - srcH) / 2,
-                srcW, srcH,
+                crop.x(), crop.y(), crop.width(), crop.height(),
                 texW, texH);
     }
 
@@ -163,9 +158,6 @@ public final class PhoneChassis {
         g.fill(fl, ft, fl + fw, ft + 2, PhoneTheme.COLOR_FRAME_HIGHLIGHT);       // 顶部高光
     }
 
-    /** 状态栏没有贴图时的兜底底色（半透明黑，压在壁纸上仍看得清） */
-    private static final int COLOR_STATUS_BAR_FALLBACK = PhoneTheme.COLOR_SCRIM;
-
     private static final int STATUS_INSET = 4;
     /** 时间略小于应用正文，避免压过右侧的小电池图标。 */
     private static final float STATUS_TIME_SCALE = 0.75F;
@@ -174,6 +166,8 @@ public final class PhoneChassis {
     /** 信号原图的可见部分更高，单独缩小，使两个图案的视觉高度接近。 */
     private static final int SIGNAL_SIZE = 10;
     private static final int STATUS_ICON_GAP = 2;
+    private static final int COLOR_GLYPH_SHADOW = 0x78242936;
+    private static final float GLYPH_SHADOW_OFFSET = 0.5F;
 
     /**
      * 画顶部状态栏：左侧时钟、右侧满格信号与满电电池。背景和状态图标可换肤。
@@ -183,17 +177,22 @@ public final class PhoneChassis {
      */
     public static void drawStatusBar(GuiGraphics g, Font font, int phoneLeft, int phoneTop,
                                      DeviceMetrics metrics) {
-        PhoneSkin.drawOrFill(g, PhoneSkin.Element.STATUS_BAR,
-                phoneLeft, phoneTop,
-                metrics.screenW(), PhoneTheme.STATUS_BAR_HEIGHT,
-                COLOR_STATUS_BAR_FALLBACK);
+        drawStatusBar(g, font, phoneLeft, phoneTop, metrics, true);
+    }
+
+    public static void drawStatusBar(GuiGraphics g, Font font, int phoneLeft, int phoneTop,
+                                     DeviceMetrics metrics, boolean drawSkinBackground) {
+        if (drawSkinBackground) {
+            PhoneSkin.draw(g, PhoneSkin.Element.STATUS_BAR, phoneLeft, phoneTop,
+                    metrics.screenW(), PhoneTheme.STATUS_BAR_HEIGHT);
+        }
 
         String time = LocalTime.now().format(TIME_FORMATTER);
         int timeY = phoneTop + Math.round((PhoneTheme.STATUS_BAR_HEIGHT - font.lineHeight * STATUS_TIME_SCALE) / 2);
         Transforms.push(g);
         Transforms.translate(g, phoneLeft + STATUS_INSET, timeY);
         Transforms.scale(g, STATUS_TIME_SCALE, STATUS_TIME_SCALE);
-        g.drawString(font, time, 0, 0, PhoneTheme.FONT_COLOR_STATUS, true);
+        drawShadowedSystemText(g, font, time, 0, 0);
         Transforms.pop(g);
 
         int bx = phoneLeft + metrics.screenW() - STATUS_INSET - BATTERY_SIZE;
@@ -212,6 +211,14 @@ public final class PhoneChassis {
                 });
     }
 
+    private static void drawShadowedSystemText(GuiGraphics g, Font font, String text, int x, int y) {
+        Transforms.push(g);
+        Transforms.translate(g, x + GLYPH_SHADOW_OFFSET, y + GLYPH_SHADOW_OFFSET);
+        g.drawString(font, text, x, y, COLOR_GLYPH_SHADOW, false);
+        Transforms.pop(g);
+        g.drawString(font, text, x, y, PhoneTheme.FONT_COLOR_STATUS, false);
+    }
+
     /** 缺图时用三根递增的白色信号柱兜底，始终显示满格。 */
     private static void drawFullSignalFallback(GuiGraphics g, int x, int y) {
         // 兜底图形按 12px 设计，与贴图一样缩到当前信号尺寸。
@@ -219,23 +226,38 @@ public final class PhoneChassis {
         Transforms.push(g);
         Transforms.translate(g, x, y);
         Transforms.scale(g, scale, scale);
+        Transforms.push(g);
+        Transforms.translate(g, GLYPH_SHADOW_OFFSET, GLYPH_SHADOW_OFFSET);
+        drawSignalBars(g, COLOR_GLYPH_SHADOW);
+        Transforms.pop(g);
+        drawSignalBars(g, PhoneTheme.FONT_COLOR_STATUS);
+        Transforms.pop(g);
+    }
+
+    private static void drawSignalBars(GuiGraphics g, int color) {
         for (int bar = 0; bar < 3; bar++) {
             int left = 1 + bar * 3;
-            g.fill(left, 8 - bar * 3, left + 2, 10, PhoneTheme.FONT_COLOR_STATUS);
+            g.fill(left, 8 - bar * 3, left + 2, 10, color);
         }
-        Transforms.pop(g);
     }
 
     /** 缺图时画同样的白色满电轮廓与三格电量；手机无需充电，始终使用这一种状态。 */
     private static void drawFullBatteryFallback(GuiGraphics g, int x, int y) {
-        int white = PhoneTheme.FONT_COLOR_STATUS;
-        g.fill(x + 1, y + 3, x + 10, y + 4, white);
-        g.fill(x + 1, y + 9, x + 10, y + 10, white);
-        g.fill(x + 1, y + 4, x + 2, y + 9, white);
-        g.fill(x + 9, y + 4, x + 10, y + 9, white);
-        g.fill(x + 10, y + 5, x + 11, y + 8, white);
+        Transforms.push(g);
+        Transforms.translate(g, GLYPH_SHADOW_OFFSET, GLYPH_SHADOW_OFFSET);
+        drawBatteryGlyph(g, x, y, COLOR_GLYPH_SHADOW);
+        Transforms.pop(g);
+        drawBatteryGlyph(g, x, y, PhoneTheme.FONT_COLOR_STATUS);
+    }
+
+    private static void drawBatteryGlyph(GuiGraphics g, int x, int y, int color) {
+        g.fill(x + 1, y + 3, x + 10, y + 4, color);
+        g.fill(x + 1, y + 9, x + 10, y + 10, color);
+        g.fill(x + 1, y + 4, x + 2, y + 9, color);
+        g.fill(x + 9, y + 4, x + 10, y + 9, color);
+        g.fill(x + 10, y + 5, x + 11, y + 8, color);
         for (int cell = 0; cell < 3; cell++) {
-            g.fill(x + 3 + cell * 2, y + 5, x + 4 + cell * 2, y + 8, white);
+            g.fill(x + 3 + cell * 2, y + 5, x + 4 + cell * 2, y + 8, color);
         }
     }
 
@@ -288,10 +310,15 @@ public final class PhoneChassis {
      */
     public static void drawNavBar(GuiGraphics g, Font font, int phoneLeft, int phoneTop,
                                   DeviceMetrics metrics, int mouseX, int mouseY) {
+        drawNavBar(g, font, phoneLeft, phoneTop, metrics, mouseX, mouseY, true);
+    }
+
+    public static void drawNavBar(GuiGraphics g, Font font, int phoneLeft, int phoneTop,
+                                  DeviceMetrics metrics, int mouseX, int mouseY, boolean drawSkinBackground) {
         NavBarLayout bar = NavBarLayout.of(phoneLeft, phoneTop, metrics);
-        PhoneSkin.drawOrFill(g, PhoneSkin.Element.NAV_BAR,
-                bar.x(), bar.y(), bar.w(), bar.h(),
-                PhoneTheme.COLOR_NAV_BAR);
+        if (drawSkinBackground) {
+            PhoneSkin.draw(g, PhoneSkin.Element.NAV_BAR, bar.x(), bar.y(), bar.w(), bar.h());
+        }
 
         NavButton hovered = hitTestNavBar(mouseX, mouseY, phoneLeft, phoneTop, metrics);
 
@@ -323,7 +350,7 @@ public final class PhoneChassis {
             if (isHovered) {
                 g.fill(cx, cy, cx + cw, cy + ch, PhoneTheme.COLOR_ROW_HOVER);
             }
-            // 悬停时整张贴图按倍数提亮。贴图改不了颜色，只能这么亮——
+            // 悬停时整张贴图按倍数提亮——
             // 用倍数而不是换成白色：资源包画的是什么颜色，亮起来还是那个颜色。
             // 设了就必须还原，否则后面画的东西跟着变亮
             int tint = isHovered ? PhoneSkin.tint(PhoneTheme.SKIN_HOVER_BRIGHTNESS) : -1;
@@ -341,10 +368,10 @@ public final class PhoneChassis {
             boolean drawn = PhoneSkin.draw(g, NAV_ICONS[i], iconX, iconY, iconW, iconH, tint);
 
             if (!drawn) {
-                int bw = font.width(NAV_GLYPHS[i]);
-                g.drawString(font, NAV_GLYPHS[i],
-                        cx + (cw - bw) / 2, cy + (ch - font.lineHeight) / 2,
-                        isHovered ? PhoneTheme.FONT_COLOR_NAV_HOVER : PhoneTheme.FONT_COLOR_NAV, false);
+                String glyph = NAV_GLYPHS[i];
+                int x = cx + (cw - font.width(glyph)) / 2;
+                int y = cy + (ch - font.lineHeight) / 2;
+                drawShadowedSystemText(g, font, glyph, x, y);
             }
         }
     }

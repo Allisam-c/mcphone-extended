@@ -4,6 +4,8 @@
 
 ### 新增
 
+- 手机和平板主屏支持文件夹，可拖动合并、添加应用、改名、分页和拖出后继续在主屏放置，排列按存档或服务器保存。
+- 文件夹使用实际桌面的全屏模糊背景和磨砂面板，默认壁纸改为渐变，状态栏与导航图标统一为白色细阴影。
 - 脚本 App 支持点击动作 `openUrl(url)`，在整次点击成功后用系统默认浏览器打开 HTTP/HTTPS 网页，每次最多一个；失败不打开，自动回调不可使用。提供 MC 百科搜索及原文跳转示例，不依赖 MCEF。
 - 脚本 App 增加 `ctx.timer.after` / `ctx.timer.cancel` 一次性延迟回调，可实现输入防抖。任务使用单调时间、在客户端页面 tick 执行，数量和延时受限；创建/取消随事务提交，切页或关闭自动清理。提供搜索防抖演示。
 - 脚本 App 的 `text-input` 和 `textarea` 支持 `@input` 调用本页函数，实现输入即时筛选、校验与预览。仅用户实际修改内容时触发，代码赋值不递归触发；回调失败撤回其效果，保留已接受的输入。提供便签即时输入演示。
@@ -22,6 +24,8 @@
 
 ### Added
 
+- Phone and tablet launchers support folders with drag-to-group, app selection, inline renaming, paging, and continuous dragging back to the home screen. Layouts are saved per world or server.
+- Folders use a blurred capture of the actual desktop and frosted panels. The default wallpaper is a gradient, with consistent white status and navigation glyphs.
 - Script apps can use the click action `openUrl(url)` to open one HTTP/HTTPS page in the system browser after the whole click commits. Failed actions do not open links, and automatic callbacks cannot use this action. Added an MC encyclopedia search example with original-page links; MCEF is not required.
 - Script apps can schedule/cancel one-shot callbacks with `ctx.timer.after` and `ctx.timer.cancel` for debounced input. Bounded tasks use a monotonic clock and run on client page ticks, commit with the surrounding transaction, and are cleared on navigation or close. Added a debounced-search example.
 - Script apps can call a page function through `@input` on `text-input` and `textarea` for live filtering, validation and previews. Only accepted user edits trigger it; programmatic writes do not recurse. Callback effects roll back on failure while accepted text is preserved. Added an instant-input notes example.

@@ -35,6 +35,7 @@
     "PlayerFaceRenderer": "PhonePlayerFaceRenderer"
   },
   "overrides": [
+    "com/november/mcphone/platform/client/PhoneDesktopCapture.java",
     "com/november/mcphone/core/PhoneItem.java",
     "com/november/mcphone/core/client/MCphoneKeyBindings.java",
     "com/november/mcphone/feature/terminal/integration/refinedstorage/TerminalSlotReference.java",

@@ -2,6 +2,10 @@ package com.november.mcphone.core.client;
 
 import com.november.mcphone.MCphone;
 import com.november.mcphone.api.client.app.IPhoneApp;
+import com.november.mcphone.core.client.home.HomeArrangement;
+import com.november.mcphone.core.client.home.HomeBackdrop;
+import com.november.mcphone.core.client.home.HomeFolderView;
+import com.november.mcphone.core.client.home.HomeInput.FolderDrag;
 import com.november.mcphone.api.client.ui.PhoneViewport;
 import com.november.mcphone.api.client.store.AppInfo;
 import com.november.mcphone.api.client.ui.IPhonePage;
@@ -180,6 +184,8 @@ public final class PhoneScreen extends PhoneScreenBase {
     private PhoneLocation location;
 
     private final HomeGrid homeGrid = new HomeGrid();
+    private final HomeFolderView homeFolder = new HomeFolderView();
+    private final HomeBackdrop folderBackdrop = new HomeBackdrop();
 
     private int phoneLeft, phoneTop;
 
@@ -263,6 +269,10 @@ public final class PhoneScreen extends PhoneScreenBase {
 
     public void navigateTo(Mode target) {
         if (this.mode == target) return;
+        if (mode == Mode.MAIN) {
+            homeFolder.close();
+            homeGrid.cancelInput();
+        }
         // 临时聊天子页记住来源；附件页返回会话时保留原来源。
         if ((target == Mode.CHAT_ADD_CONTACT || target == Mode.CHAT_CONVERSATION || target == Mode.CHAT_GROUP_CONVERSATION || target == Mode.CHAT_GROUP_CREATE)
                 && (mode == Mode.CHAT || mode == Mode.CHAT_CONTACTS || mode == Mode.MAIN)) {
@@ -622,6 +632,7 @@ public final class PhoneScreen extends PhoneScreenBase {
 
     /** Screen 由原版 tick；后台 HUD 由 PhoneHud tick，二者互斥。 */
     @Override public void tick() {
+        homeFolder.tick();
         super.tick();
         if (chatConversation.profileSuspended()) chatConversation.tick();
         updateAddonContext();
@@ -695,6 +706,7 @@ public final class PhoneScreen extends PhoneScreenBase {
 
     /** 导航栏 ◁ 走这里；ESC 不退层而是直接关机，见 {@link #keyPressed}。真的退了一层才 true */
     private boolean goBackOneLevel() {
+        if (inHomeFolder()) { homeFolder.back(); return true; }
         if (mode == Mode.CHANGELOG) { navigateTo(Mode.SETTINGS); return true; }
         if (mode == Mode.GALLERY && gallery.backToGrid()) return true;
 
@@ -927,8 +939,10 @@ public final class PhoneScreen extends PhoneScreenBase {
         // 从这里往下，所有页面拿到的都是换算过的坐标——它们按 120×200 算命中，
         // 而屏幕上画出来的是放大过的。{@link #render} 里那句铺背景的用的是原始坐标：
         // 它铺的是整个窗口，不在手机这层缩放里
-        final int mouseX = changelogPopup ? NO_MOUSE : (int) Math.round(unscaledX(rawMouseX));
-        final int mouseY = changelogPopup ? NO_MOUSE : (int) Math.round(unscaledY(rawMouseY));
+        final double pointerX = unscaledX(rawMouseX);
+        final double pointerY = unscaledY(rawMouseY);
+        final int mouseX = changelogPopup ? NO_MOUSE : (int) Math.round(pointerX);
+        final int mouseY = changelogPopup ? NO_MOUSE : (int) Math.round(pointerY);
 
         // 下面每一页都要这四个数。取成局部量是为了让分派那一长串看得见页面之间的差别
         // （谁多收一个 partialTick、谁要窗口尺寸），而不是被四个一模一样的常量名淹掉
@@ -952,13 +966,32 @@ public final class PhoneScreen extends PhoneScreenBase {
         Transforms.scale(g, scale, scale);
         Transforms.translate(g, -cx, -cy);
 
-        renderScreenBackground(g);
-        renderStatusBar(g);
+        boolean folderOpen = inHomeFolder();
+        PhoneChassis.drawScreenBackground(g, phoneLeft, phoneTop, metrics.screenW(), sh);
+        if (folderOpen) {
+            if (!folderBackdrop.drawDesktop(g, phoneLeft, phoneTop, metrics)) {
+                homeGrid.render(g, phoneLeft, phoneTop, metrics, font, nowMs, NO_MOUSE, NO_MOUSE, partialTick);
+            }
+            g.fill(phoneLeft, phoneTop, phoneLeft + metrics.screenW(), phoneTop + sh, 0x66080C16);
+        } else {
+            folderBackdrop.clearDesktop();
+        }
+        PhoneChassis.drawStatusBar(g, font, phoneLeft, phoneTop, metrics, !folderOpen);
 
         switch (mode) {
-            case CHANGELOG -> changelogPage.render(g, phoneLeft, phoneTop, sw, sh, statusH, navH, font, false);
-            case MAIN              -> homeGrid.render(g, phoneLeft, phoneTop, metrics, font,
-                    nowMs, mouseX, mouseY, partialTick);
+            case CHANGELOG -> changelogPage.render(g, phoneLeft, phoneTop, sw, sh, statusH, navH, font, false, mouseX, mouseY);
+            case MAIN -> {
+                if (folderOpen) {
+                    homeFolder.render(g, phoneLeft, phoneTop, metrics, font, mouseX, mouseY, partialTick, folderBackdrop);
+                } else {
+                    homeGrid.render(g, phoneLeft, phoneTop, metrics, font, nowMs, mouseX, mouseY, partialTick);
+                    if (!changelogPopup) {
+                        var window = Minecraft.getInstance().getWindow();
+                        folderBackdrop.rememberDesktop(phoneLeft, phoneTop, metrics, scale,
+                                window.getGuiScaledWidth(), window.getGuiScaledHeight());
+                    }
+                }
+            }
             case SETTINGS          -> {
                 buildSettingItems();
                 settingsList.render(g, phoneLeft, phoneTop,
@@ -1058,9 +1091,10 @@ public final class PhoneScreen extends PhoneScreenBase {
                     mouseX, mouseY, partialTick, font);
         }
 
-        renderNavBar(g, mouseX, mouseY);
+        PhoneChassis.drawNavBar(g, font, phoneLeft, phoneTop, metrics, mouseX, mouseY, !folderOpen);
         if (changelogPopup) {
-            changelogDialog.render(g, phoneLeft, phoneTop, metrics.screenW(), sh, statusH, navH, font, true);
+            changelogDialog.render(g, phoneLeft, phoneTop, metrics.screenW(), sh, statusH, navH,
+                    font, true, pointerX, pointerY);
             if (changelogRecord != null) {
                 ChangelogClient.shown(changelogRecord);
                 changelogRecord = null;
@@ -1075,13 +1109,8 @@ public final class PhoneScreen extends PhoneScreenBase {
 
     }
 
-    private void renderScreenBackground(GuiGraphics g) {
-        PhoneChassis.drawScreenBackground(g, phoneLeft, phoneTop,
-                metrics.screenW(), metrics.screenH());
-    }
-
-    private void renderStatusBar(GuiGraphics g) {
-        PhoneChassis.drawStatusBar(g, font, phoneLeft, phoneTop, metrics);
+    private boolean inHomeFolder() {
+        return mode == Mode.MAIN && homeFolder.isOpen();
     }
 
     /** 建一次就够。标签在这一刻定死；PhoneScreen 每次开机都是新造的，换语言重开就跟上 */
@@ -1133,10 +1162,6 @@ public final class PhoneScreen extends PhoneScreenBase {
 
     private static String currentFontColorLabel() {
         return Component.translatable(FontPalette.current().translationKey()).getString();
-    }
-
-    private void renderNavBar(GuiGraphics g, int mouseX, int mouseY) {
-        PhoneChassis.drawNavBar(g, font, phoneLeft, phoneTop, metrics, mouseX, mouseY);
     }
 
     /**
@@ -1258,6 +1283,11 @@ public final class PhoneScreen extends PhoneScreenBase {
         // 更早的地方就收走并取消了事件；留着是兜底：万一哪个模组把那条事件截了，
         // 屏幕这条路还在。两条都试过之后仍然绑不上，那就说明这一下压根没进游戏
         if (captureHotkeyMouse(nativeButton)) return true;
+        // 改名时同一次点击只交给输入框，点框外也不会顺带触发导航栏或收起手机。
+        if (inHomeFolder() && (button != 0 || homeFolder.isRenaming())) {
+            homeFolder.click(unscaledX(rawX), unscaledY(rawY), button);
+            return true;
+        }
 
         // 菜单打开时先接管所有点击，点机身外或导航栏也只关闭菜单，不穿透。
         if (mode == Mode.CHAT && dispatchChatHomeMenu(chatList, unscaledX(rawX), unscaledY(rawY), button, this::navigateTo))
@@ -1292,7 +1322,8 @@ public final class PhoneScreen extends PhoneScreenBase {
         // 点在机身外＝收起手机，哪一页都一样。判定必须在分发之前：
         // 各页的 mouseClicked 一律 yield true 把点击吞掉，放到后面就永远轮不到
         if (!isInsidePhone(mx, my)) {
-            onClose();
+            if (inHomeFolder()) homeFolder.back();
+            else onClose();
             return true;
         }
 
@@ -1313,6 +1344,7 @@ public final class PhoneScreen extends PhoneScreenBase {
                 return true;
             }
             case HOME -> {
+                homeFolder.close();
                 navigateTo(Mode.MAIN);
                 return true;
             }
@@ -1327,6 +1359,10 @@ public final class PhoneScreen extends PhoneScreenBase {
         return switch (mode) {
             case CHANGELOG -> { changelogPage.mouseClicked(mx, my, button); yield true; }
             case MAIN -> {
+                if (inHomeFolder()) {
+                    homeFolder.click(mx, my, button);
+                    yield true;
+                }
                 if (homeGrid.mousePressed(mx, my)) yield true;
 
                 // 机身外的已经在上面收走了，到这儿必是机身内的空白处：横着拖是翻页
@@ -1594,6 +1630,11 @@ public final class PhoneScreen extends PhoneScreenBase {
         final double ldx = dx / scale;
         final double ldy = dy / scale;
 
+        if (inHomeFolder()) {
+            FolderDrag outbound = homeFolder.drag(mx, my, button);
+            if (outbound != null) continueFolderDrag(outbound, mx, my);
+            return true;
+        }
         if (mode == Mode.MAIN && button == 0 && homeGrid.mouseDragged(mx, my)) {
             return true;
         }
@@ -1609,6 +1650,11 @@ public final class PhoneScreen extends PhoneScreenBase {
         // 多行输入框靠拖动选中文本，不转发的话选不了
         if (mode == Mode.NOTE_EDIT && noteEditor.mouseDragged(mx, my, button, ldx, ldy)) return true;
         return super.mouseDragged(rawX, rawY, nativeButton, dx, dy);
+    }
+
+    private void continueFolderDrag(FolderDrag outbound, double x, double y) {
+        folderBackdrop.clearDesktop();
+        homeGrid.continueFolderDrag(outbound, x, y, phoneLeft, phoneTop, metrics, font);
     }
 
     /** 松手才定性：主屏上这一下算"点开"还是"挪位置" */
@@ -1635,10 +1681,29 @@ public final class PhoneScreen extends PhoneScreenBase {
         if (mode == Mode.UI_SCALE) uiScalePage.mouseReleased();
         if (mode == Mode.HUD) hudPage.mouseReleased();
 
+        if (inHomeFolder()) {
+            double mx = unscaledX(rawX);
+            double my = unscaledY(rawY);
+            FolderDrag outbound = homeFolder.release(mx, my, button, app -> {
+                homeFolder.close();
+                launchApp(app);
+            });
+            if (outbound != null) {
+                continueFolderDrag(outbound, mx, my);
+                homeGrid.mouseReleased(mx, my);
+            }
+            return true;
+        }
         if (mode == Mode.MAIN && button == 0
                 && homeGrid.mouseReleased(unscaledX(rawX), unscaledY(rawY))) {
-            IPhoneApp launch = homeGrid.consumeLaunchRequest();
-            if (launch != null) launchApp(launch);
+            HomeArrangement.Entry entry = homeGrid.consumeOpenRequest();
+            if (entry instanceof HomeArrangement.Folder folder) {
+                homeFolder.open(folder.id());
+                folderBackdrop.captureDesktop();
+            } else if (entry instanceof HomeArrangement.App app) {
+                IPhoneApp launch = PhoneScreenRegistry.homeApp(app.id());
+                if (launch != null) launchApp(launch);
+            }
             return true;
         }
 
@@ -1693,6 +1758,10 @@ public final class PhoneScreen extends PhoneScreenBase {
             changelogPage.scroll(mx, my, scrollY);
             return true;
         }
+        if (inHomeFolder()) {
+            homeFolder.scroll(scrollX, scrollY);
+            return true;
+        }
         if (mode == Mode.MAIN && homeGrid.mouseScrolled(scrollY)) return true;
         if (mode == Mode.GALLERY && gallery.mouseScrolled(scrollY)) return true;
         if (mode == Mode.CHAT && chatList.mouseScrolled(scrollY)) return true;
@@ -1731,6 +1800,8 @@ public final class PhoneScreen extends PhoneScreenBase {
             if (keyCode == InputConstants.KEY_ESCAPE) changelogPopup = false;
             return true;
         }
+        if (inHomeFolder() && homeFolder.keyPressed(keyCode, scanCode, modifiers)) return true;
+        if (keyCode == 256 && mode == Mode.MAIN && homeGrid.cancelDrag()) return true;
         if (mode == Mode.ADDON_PAGE) updateAddonContext();
         // App 管理页正等着玩家按一个键当快捷键。这一下不是在操作手机，是在绑键，
         // 所以要抢在下面 ESC 关机之前——在那一页上 ESC 的意思是"清除这个绑定"
@@ -1791,7 +1862,8 @@ public final class PhoneScreen extends PhoneScreenBase {
         }
 
         if (minecraft != null && com.november.mcphone.platform.client.PhoneKeyInput.matches(minecraft.options.keyInventory,keyCode,scanCode)) {
-            if (mode != Mode.MAIN) back();
+            if (inHomeFolder()) homeFolder.back();
+            else if (mode != Mode.MAIN) back();
             else onClose();
             return true;
         }
@@ -1822,6 +1894,7 @@ public final class PhoneScreen extends PhoneScreenBase {
     /** 26.1 的码点事件直接走此入口；老目标继续经 char 重载送入页面。 */
     public boolean charTyped(int codePoint, int modifiers) {
         if (changelogPopup) return true;
+        if (inHomeFolder()) { homeFolder.charTyped(codePoint, modifiers); return true; }
         if (mode == Mode.ADDON_PAGE) {
             updateAddonContext();
             return addonInteractive() && callPage(p -> p.charTyped(codePoint, modifiers));
@@ -1833,6 +1906,7 @@ public final class PhoneScreen extends PhoneScreenBase {
     @Override
     public boolean charTyped(char c, int modifiers) {
         if (changelogPopup) return true;
+        if (inHomeFolder()) { homeFolder.charTyped(c, modifiers); return true; }
         if (mode == Mode.CHAT && chatList.hasContextMenu()) return true;
         if (mode == Mode.ADDON_PAGE) {
             updateAddonContext();
@@ -1860,6 +1934,8 @@ public final class PhoneScreen extends PhoneScreenBase {
     public void removed() {
         // HUD 暂时退出交互仍继续显示，但必须结束其按键与拖动会话。
         addonHost.interactive(false);
+        homeGrid.cancelInput();
+        homeFolder.cancelInput();
         hudDragging = false;
         // HUD 上那部手机是【一直开着】的：松开 Alt、或者从书架点开一本书把它顶掉，都只是
         // 它不再是 mc.screen —— 人还在副手上拿着，屏幕也还亮着。这时候真去拆，聊天会话、
@@ -1877,6 +1953,9 @@ public final class PhoneScreen extends PhoneScreenBase {
      * （手机离开副手）。它不是幂等的，重复调会把已经清过的状态再清一遍。
      */
     void shutdown() {
+        folderBackdrop.close();
+        homeGrid.cancelInput();
+        homeFolder.close();
         // 屏幕在别人眼里亮不亮不必在这儿管：那是 PhoneScreenOnSync 每 tick 自己算的，
         // 这部手机从 mc.screen / PhoneHud 上消失，下一 tick 它自然就灭了
 

@@ -481,13 +481,19 @@ public final class GuiUtil {
     public static void drawIconLabel(GuiGraphics g, Font font, String name,
                                      int iconX, int iconY, int iconSize,
                                      int cellWidth, float scale, int color) {
+        drawIconLabel(g, font, name, iconX, iconY, iconSize, cellWidth, scale, color, false);
+    }
+
+    public static void drawIconLabel(GuiGraphics g, Font font, String name,
+                                     int iconX, int iconY, int iconSize,
+                                     int cellWidth, float scale, int color, boolean shadow) {
         String shown = truncate(font, name, Math.round(cellWidth / scale));
         float shownW = font.width(shown) * scale;
 
         Transforms.push(g);
         Transforms.translate(g, iconX + (iconSize - shownW) / 2f, iconY + iconSize + 2);
         Transforms.scale(g, scale, scale);
-        g.drawString(font, shown, 0, 0, color, false);
+        g.drawString(font, shown, 0, 0, color, shadow);
         Transforms.pop(g);
     }
 
