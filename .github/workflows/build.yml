@@ -726,7 +726,12 @@ jobs:
               [ -n "$PLURAL" ] || continue
               if [ "$SINGULAR" = "true" ]; then BAD_DIR="$PLURAL"; WANT="$SINGULARNAME";
               else BAD_DIR="$SINGULARNAME"; WANT="$PLURAL"; fi
-              HITS=$(find "$RES" -path "$RES/data/*/$BAD_DIR/*" -type f 2>/dev/null || true)
+              # 只看 data/<namespace>/ 下的第一层目录。advancement/recipes/
+              # 是正常的进度分类路径，不能被当成数据包顶层目录改名。
+              HITS=$(find "$RES/data" -mindepth 2 -maxdepth 2 -type d -name "$BAD_DIR" 2>/dev/null |
+                while IFS= read -r BAD_ROOT; do
+                  find "$BAD_ROOT" -type f
+                done || true)
               if [ -n "$HITS" ]; then
                 echo "::error::目标 $NAME（Minecraft $MC）的数据包目录名不对：$BAD_DIR/ 应为 $WANT/"
                 printf '%s\n' "$HITS" | sed 's/^/    /'
