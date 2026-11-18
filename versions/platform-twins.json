@@ -149,6 +149,7 @@
     "com/november/mcphone/platform/client/ImageTextures.java": 25,
     "com/november/mcphone/platform/client/ItemIcons.java": 115,
     "com/november/mcphone/platform/client/KeyModifiers.java": 142,
+    "com/november/mcphone/platform/client/NativeExternalBookView.java": 6,
     "com/november/mcphone/platform/client/PhoneBookIcons.java": 20,
     "com/november/mcphone/platform/client/PhoneContainerScreenBase.java": 176,
     "com/november/mcphone/platform/client/PhoneKeyInput.java": 46,
