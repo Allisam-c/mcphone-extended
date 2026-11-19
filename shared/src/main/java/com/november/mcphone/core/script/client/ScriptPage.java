@@ -30,6 +30,7 @@ import com.november.mcphone.core.script.sfc.PageStates;
 import com.november.mcphone.core.script.sfc.Statements;
 import com.november.mcphone.core.script.sfc.TemplateInstance;
 import com.november.mcphone.platform.client.Screens;
+import com.november.mcphone.platform.client.SystemFiles;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.network.chat.Component;
@@ -145,11 +146,11 @@ public final class ScriptPage implements IPhonePage {
     private long pressedUntil;
 
     public ScriptPage(ScriptApp app) {
-        this(app, System::nanoTime, url -> net.minecraft.Util.getPlatform().openUri(url));
+        this(app, System::nanoTime, SystemFiles::openUri);
     }
 
     ScriptPage(ScriptApp app, LongSupplier timerClock) {
-        this(app, timerClock, url -> net.minecraft.Util.getPlatform().openUri(url));
+        this(app, timerClock, SystemFiles::openUri);
     }
 
     /** Isolate the OS boundary in checks; normal pages always use the platform browser. */

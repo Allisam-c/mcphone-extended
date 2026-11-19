@@ -32,4 +32,8 @@ public final class Screens {
     public static Screen current(Minecraft mc) {
         return mc.screen;
     }
+
+    public static void set(Minecraft mc, Screen screen) {
+        mc.setScreen(screen);
+    }
 }

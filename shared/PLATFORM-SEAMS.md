@@ -224,7 +224,7 @@ Minecraft 1.20.1，在其之前，那一侧只能使用能力。`getCapability(.
 
 <!-- 下面这段由 ./gradlew updateSeamsDoc 生成，别手改：1.21.1-neoforge -->
 
-#### 共用代码引用了的（48）
+#### 共用代码引用了的（50）
 
 **新平台必须提供同名类型**，否则 shared/ 与共享层编不过。全限定名是硬约束；方法体是抄现成的一份还是自己写，看那个文件。
 
@@ -265,7 +265,9 @@ Minecraft 1.20.1，在其之前，那一侧只能使用能力。`getCapability(.
 - `platform.client.Draw`
 - `platform.client.EditBoxes`
 - `platform.client.KeyModifiers`　—— 加载器导入
+- `platform.client.NativeExternalBookView`
 - `platform.client.PhoneContainerScreenBase`
+- `platform.client.PhoneDesktopCapture`
 - `platform.client.PhoneScreenBase`
 - `platform.client.PhoneToastBase`
 - `platform.client.PhoneWeather`
@@ -326,7 +328,7 @@ Minecraft 1.20.1，在其之前，那一侧只能使用能力。`getCapability(.
 
 <!-- 下面这段由 ./gradlew updateSeamsDoc 生成，别手改：1.20.1-forge -->
 
-#### 共用代码引用了的（92）
+#### 共用代码引用了的（94）
 
 **新平台必须提供同名类型**，否则 shared/ 与共享层编不过。全限定名是硬约束；方法体是抄现成的一份还是自己写，看那个文件。
 
@@ -411,7 +413,9 @@ Minecraft 1.20.1，在其之前，那一侧只能使用能力。`getCapability(.
 - `platform.client.Draw`
 - `platform.client.EditBoxes`
 - `platform.client.KeyModifiers`　—— 加载器导入
+- `platform.client.NativeExternalBookView`
 - `platform.client.PhoneContainerScreenBase`
+- `platform.client.PhoneDesktopCapture`
 - `platform.client.PhoneScreenBase`
 - `platform.client.PhoneToastBase`
 - `platform.client.PhoneWeather`
@@ -488,7 +492,7 @@ Minecraft 1.20.1，在其之前，那一侧只能使用能力。`getCapability(.
 
 <!-- 下面这段由 ./gradlew updateSeamsDoc 生成，别手改：1.21.1-fabric -->
 
-#### 共用代码引用了的（51）
+#### 共用代码引用了的（53）
 
 **新平台必须提供同名类型**，否则 shared/ 与共享层编不过。全限定名是硬约束；方法体是抄现成的一份还是自己写，看那个文件。
 
@@ -532,7 +536,9 @@ Minecraft 1.20.1，在其之前，那一侧只能使用能力。`getCapability(.
 - `platform.client.Draw`
 - `platform.client.EditBoxes`
 - `platform.client.KeyModifiers`
+- `platform.client.NativeExternalBookView`
 - `platform.client.PhoneContainerScreenBase`
+- `platform.client.PhoneDesktopCapture`
 - `platform.client.PhoneScreenBase`
 - `platform.client.PhoneToastBase`
 - `platform.client.PhoneWeather`
@@ -599,7 +605,7 @@ Minecraft 1.20.1，在其之前，那一侧只能使用能力。`getCapability(.
 
 <!-- 下面这段由 ./gradlew updateSeamsDoc 生成，别手改：26.1.2-fabric -->
 
-#### 共用代码引用了的（51）
+#### 共用代码引用了的（53）
 
 **新平台必须提供同名类型**，否则 shared/ 与共享层编不过。全限定名是硬约束；方法体是抄现成的一份还是自己写，看那个文件。
 
@@ -643,7 +649,9 @@ Minecraft 1.20.1，在其之前，那一侧只能使用能力。`getCapability(.
 - `platform.client.Draw`
 - `platform.client.EditBoxes`
 - `platform.client.KeyModifiers`
+- `platform.client.NativeExternalBookView`
 - `platform.client.PhoneContainerScreenBase`
+- `platform.client.PhoneDesktopCapture`
 - `platform.client.PhoneScreenBase`
 - `platform.client.PhoneToastBase`
 - `platform.client.PhoneWeather`
@@ -713,7 +721,7 @@ Minecraft 1.20.1，在其之前，那一侧只能使用能力。`getCapability(.
 
 <!-- 下面这段由 ./gradlew updateSeamsDoc 生成，别手改：26.2-fabric -->
 
-#### 共用代码引用了的（52）
+#### 共用代码引用了的（54）
 
 **新平台必须提供同名类型**，否则 shared/ 与共享层编不过。全限定名是硬约束；方法体是抄现成的一份还是自己写，看那个文件。
 
@@ -758,7 +766,9 @@ Minecraft 1.20.1，在其之前，那一侧只能使用能力。`getCapability(.
 - `platform.client.Draw`
 - `platform.client.EditBoxes`
 - `platform.client.KeyModifiers`
+- `platform.client.NativeExternalBookView`
 - `platform.client.PhoneContainerScreenBase`
+- `platform.client.PhoneDesktopCapture`
 - `platform.client.PhoneScreenBase`
 - `platform.client.PhoneToastBase`
 - `platform.client.PhoneWeather`
@@ -826,7 +836,7 @@ Minecraft 1.20.1，在其之前，那一侧只能使用能力。`getCapability(.
 
 <!-- 下面这段由 ./gradlew updateSeamsDoc 生成，别手改：26.2-neoforge -->
 
-#### 共用代码引用了的（49）
+#### 共用代码引用了的（51）
 
 **新平台必须提供同名类型**，否则 shared/ 与共享层编不过。全限定名是硬约束；方法体是抄现成的一份还是自己写，看那个文件。
 
@@ -868,7 +878,9 @@ Minecraft 1.20.1，在其之前，那一侧只能使用能力。`getCapability(.
 - `platform.client.Draw`
 - `platform.client.EditBoxes`
 - `platform.client.KeyModifiers`　—— 加载器导入
+- `platform.client.NativeExternalBookView`
 - `platform.client.PhoneContainerScreenBase`
+- `platform.client.PhoneDesktopCapture`
 - `platform.client.PhoneScreenBase`
 - `platform.client.PhoneToastBase`
 - `platform.client.PhoneWeather`
@@ -929,7 +941,7 @@ Minecraft 1.20.1，在其之前，那一侧只能使用能力。`getCapability(.
 
 <!-- 下面这段由 ./gradlew updateSeamsDoc 生成，别手改：26.1.2-neoforge -->
 
-#### 共用代码引用了的（47）
+#### 共用代码引用了的（49）
 
 **新平台必须提供同名类型**，否则 shared/ 与共享层编不过。全限定名是硬约束；方法体是抄现成的一份还是自己写，看那个文件。
 
@@ -969,7 +981,9 @@ Minecraft 1.20.1，在其之前，那一侧只能使用能力。`getCapability(.
 - `platform.client.Draw`
 - `platform.client.EditBoxes`
 - `platform.client.KeyModifiers`　—— 加载器导入
+- `platform.client.NativeExternalBookView`
 - `platform.client.PhoneContainerScreenBase`
+- `platform.client.PhoneDesktopCapture`
 - `platform.client.PhoneScreenBase`
 - `platform.client.PhoneToastBase`
 - `platform.client.PhoneWeather`
@@ -1031,7 +1045,7 @@ Minecraft 1.20.1，在其之前，那一侧只能使用能力。`getCapability(.
 
 <!-- 下面这段由 ./gradlew updateSeamsDoc 生成，别手改：26.3-neoforge -->
 
-#### 共用代码引用了的（47）
+#### 共用代码引用了的（49）
 
 **新平台必须提供同名类型**，否则 shared/ 与共享层编不过。全限定名是硬约束；方法体是抄现成的一份还是自己写，看那个文件。
 
@@ -1071,7 +1085,9 @@ Minecraft 1.20.1，在其之前，那一侧只能使用能力。`getCapability(.
 - `platform.client.Draw`
 - `platform.client.EditBoxes`
 - `platform.client.KeyModifiers`　—— 加载器导入
+- `platform.client.NativeExternalBookView`
 - `platform.client.PhoneContainerScreenBase`
+- `platform.client.PhoneDesktopCapture`
 - `platform.client.PhoneScreenBase`
 - `platform.client.PhoneToastBase`
 - `platform.client.PhoneWeather`
@@ -1134,7 +1150,7 @@ Minecraft 1.20.1，在其之前，那一侧只能使用能力。`getCapability(.
 
 <!-- 下面这段由 ./gradlew updateSeamsDoc 生成，别手改：26.3-fabric -->
 
-#### 共用代码引用了的（52）
+#### 共用代码引用了的（54）
 
 **新平台必须提供同名类型**，否则 shared/ 与共享层编不过。全限定名是硬约束；方法体是抄现成的一份还是自己写，看那个文件。
 
@@ -1179,7 +1195,9 @@ Minecraft 1.20.1，在其之前，那一侧只能使用能力。`getCapability(.
 - `platform.client.Draw`
 - `platform.client.EditBoxes`
 - `platform.client.KeyModifiers`
+- `platform.client.NativeExternalBookView`
 - `platform.client.PhoneContainerScreenBase`
+- `platform.client.PhoneDesktopCapture`
 - `platform.client.PhoneScreenBase`
 - `platform.client.PhoneToastBase`
 - `platform.client.PhoneWeather`

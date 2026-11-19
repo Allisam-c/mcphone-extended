@@ -43,7 +43,7 @@ public final class TextInputs {
     public TextInputs() { this(EditBox::new, EditBoxes::click); }
 
     public TextInputs(Consumer<LayoutNode> onInput) {
-        this(EditBox::new, (box, x, y, button) -> box.mouseClicked(x, y, button),
+        this(EditBox::new, EditBoxes::click,
                 () -> Minecraft.getInstance().keyboardHandler.getClipboard(),
                 text -> Minecraft.getInstance().keyboardHandler.setClipboard(text), onInput);
     }
