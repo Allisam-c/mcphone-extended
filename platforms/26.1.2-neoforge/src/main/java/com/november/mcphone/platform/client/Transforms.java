@@ -35,4 +35,9 @@ public final class Transforms {
     public static float mapY(PhoneGraphics g, float x, float y) {
         return g.pose().last().pose().transformPosition(x, y, 0.0F, new Vector3f()).y;
     }
+
+    /** PhoneGraphics 已负责避免原版对窗口坐标再次应用矩阵。 */
+    public static void scissor(PhoneGraphics g, int x0, int y0, int x1, int y1) {
+        g.enableScissor(x0, y0, x1, y1);
+    }
 }

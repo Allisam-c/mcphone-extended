@@ -90,4 +90,15 @@ public final class Transforms {
     public static float mapY(GuiGraphicsExtractor g, float x, float y) {
         return g.pose().transformPosition(x, y, new Vector2f()).y;
     }
+
+    /** GuiUtil 已完成坐标变换和向外取整，提交裁剪框时避免原版再次变换。 */
+    public static void scissor(GuiGraphicsExtractor g, int x0, int y0, int x1, int y1) {
+        g.pose().pushMatrix();
+        try {
+            g.pose().identity();
+            g.enableScissor(x0, y0, x1, y1);
+        } finally {
+            g.pose().popMatrix();
+        }
+    }
 }

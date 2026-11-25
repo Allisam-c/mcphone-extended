@@ -56,6 +56,13 @@ ok 1.10.1-beta.10 1.10.1-beta.9 patch beta
 # custom 原样放行（含后缀）
 ok 1.2.3      1.10.0 custom release 1.2.3
 ok 1.2.3-rc.1 1.10.0 custom beta    1.2.3-rc.1
+ok 1.12.1.1 1.12.1 custom release 1.12.1.1
+ok 1.12.1.2 1.12.1.1 patch release
+ok 1.13.0 1.12.1.1 minor release
+ok 2.0.0 1.12.1.1 major release
+ok 1.12.1.1-beta.2 1.12.1.1-beta.1 patch beta
+ok 1.12.1.1 1.12.1.1-beta.1 promote release
+no 'custom 五段数字不合法' 1.12.1 custom release 1.12.1.1.1
 
 # 该拦的
 no 'beta 之后回 alpha 是降级'      1.10.1-beta.2 patch alpha

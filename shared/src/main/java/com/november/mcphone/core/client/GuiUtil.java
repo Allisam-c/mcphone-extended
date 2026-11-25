@@ -237,7 +237,7 @@ public final class GuiUtil {
      *
      * 为什么必须包一层
      *
-     * 原版的 {@code GuiGraphics.enableScissor} 收窗口坐标，而且【完全不看 PoseStack】：
+     * 旧版的 {@code GuiGraphics.enableScissor} 收窗口坐标，而且【完全不看 PoseStack】：
      * 它把矩形原样压进 scissorStack，{@code applyScissor} 只按 {@code window.getGuiScale()}
      * 换算一次。而 1.9.3 起整个手机是套在一层 pose 缩放里画的（{@code PhoneScreen.render}
      * 绕手机中心 scale，倍数是开机动画 × {@link PhoneScale}）——各页面照旧按 120×200 的本地
@@ -245,6 +245,9 @@ public final class GuiUtil {
      *
      * 症状是【文字被切掉】：界面大小调到 150%，聊天记录、App 详情、关于页的正文都会缺一块，
      * 而且缺的位置随缩放变。100% 时一切正常，所以很容易被当成"某一页写错了"。
+     *
+     * 26.x 的原版会自动变换裁剪框。坐标统一在这里换算并向外取整，再由
+     * {@code Transforms.scissor} 避免重复变换，否则状态栏图标在非 100% 时会被裁掉。
      *
      * 为什么从 pose 里取，而不是把 PhoneScale 的倍数传进来
      *
@@ -270,7 +273,7 @@ public final class GuiUtil {
         // 倍数不是整数时（125%，或者被窗口 fit() 夹出来的小数），四个角各自四舍五入
         // 会让框比内容实际盖住的像素窄半格，最外面一行字被切掉一个像素——正是这次要修的
         // 症状的微缩版。这么取最多多画 1 像素：多画看不出来，少画看得出来。
-        g.enableScissor(
+        Transforms.scissor(g,
                 (int) Math.floor(Math.min(ax, bx)), (int) Math.floor(Math.min(ay, by)),
                 (int) Math.ceil(Math.max(ax, bx)), (int) Math.ceil(Math.max(ay, by)));
     }
