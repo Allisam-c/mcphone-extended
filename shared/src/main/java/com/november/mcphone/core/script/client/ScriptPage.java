@@ -29,6 +29,8 @@ import com.november.mcphone.core.script.sfc.SfcCompiler;
 import com.november.mcphone.core.script.sfc.PageStates;
 import com.november.mcphone.core.script.sfc.Statements;
 import com.november.mcphone.core.script.sfc.TemplateInstance;
+import com.november.mcphone.platform.client.Screens;
+import com.november.mcphone.platform.client.SystemFiles;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.network.chat.Component;
@@ -144,11 +146,11 @@ public final class ScriptPage implements IPhonePage {
     private long pressedUntil;
 
     public ScriptPage(ScriptApp app) {
-        this(app, System::nanoTime, url -> net.minecraft.Util.getPlatform().openUri(url));
+        this(app, System::nanoTime, SystemFiles::openUri);
     }
 
     ScriptPage(ScriptApp app, LongSupplier timerClock) {
-        this(app, timerClock, url -> net.minecraft.Util.getPlatform().openUri(url));
+        this(app, timerClock, SystemFiles::openUri);
     }
 
     /** Isolate the OS boundary in checks; normal pages always use the platform browser. */
@@ -548,7 +550,7 @@ public final class ScriptPage implements IPhonePage {
 
     /** 关掉这个 App 回主屏。宿主的 navigateTo 会顺手调 {@link #onClose()}。 */
     private void close() {
-        if (Minecraft.getInstance().screen instanceof PhoneScreen phone) phone.back();
+        if (Screens.current(Minecraft.getInstance()) instanceof PhoneScreen phone) phone.back();
     }
 
     @Override

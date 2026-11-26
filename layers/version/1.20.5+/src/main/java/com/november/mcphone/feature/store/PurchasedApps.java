@@ -48,7 +48,7 @@ public record PurchasedApps(Set<ResourceLocation> ids) {
 
     public static PurchasedApps decode(FriendlyByteBuf buf) {
         List<ResourceLocation> list =
-                Wire.readList(buf, MAX_COUNT, FriendlyByteBuf::readResourceLocation);
+                Wire.readList(buf, MAX_COUNT, b -> b.readResourceLocation());
         return new PurchasedApps(Set.copyOf(list));
     }
 

@@ -50,8 +50,8 @@ die() { printf '::error::%s\n' "$1" >&2; exit 1; }
 
 BASE="${CURRENT%%-*}"
 SUFFIX="${CURRENT#"$BASE"}"
-printf '%s' "$BASE" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+$' \
-  || die "当前版本 $CURRENT 不是 x.y.z 也不是 x.y.z-后缀，无法在它基础上升"
+printf '%s' "$BASE" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+(\.[0-9]+)?$' \
+  || die "当前版本 $CURRENT 不是三段或四段数字版本号，无法在它基础上升"
 
 case "$CHANNEL" in
   release) NEWRANK=3 ;;
@@ -76,7 +76,7 @@ fi
 if [ "$BUMP" = "custom" ]; then
   [ -n "$CUSTOM" ] || die "选了 custom 就必须填 custom_version"
   # 后缀只收 [0-9A-Za-z.-]：tag 名与 jar 文件名都由它拼出来
-  printf '%s' "$CUSTOM" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$' \
+  printf '%s' "$CUSTOM" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+(\.[0-9]+)?(-[0-9A-Za-z.-]+)?$' \
     || die "custom_version=$CUSTOM 不是 x.y.z 或 x.y.z-后缀（如 1.10.1-beta.1）。tag 名与 jar 文件名都由它拼出来，不接受别的形状"
   printf '%s\n' "$CUSTOM"
   exit 0
@@ -98,14 +98,16 @@ if [ -n "$SUFFIX" ]; then
     || die "当前是 $CURRENT，渠道却选了 $CHANNEL —— 那个号在 Maven 版本序里【小于】现在这个，发出去是降级：装着 $CURRENT 的人看不到它。要重开一条线请换基准号（custom）"
 else
   [ "$BUMP" != "promote" ] || die "内部错误：promote 走到了没有后缀的分支"
-  IFS=. read -r MA MI PA <<< "$BASE"
+  IFS=. read -r MA MI PA HOTFIX <<< "$BASE"
   case "$BUMP" in
     major) MA=$((MA + 1)); MI=0; PA=0 ;;
     minor) MI=$((MI + 1)); PA=0 ;;
-    patch) PA=$((PA + 1)) ;;
+    patch)
+      if [ -n "$HOTFIX" ]; then HOTFIX=$((HOTFIX + 1)); else PA=$((PA + 1)); fi ;;
     *) die "认不出的 bump 类型：$BUMP" ;;
   esac
   NEWBASE="$MA.$MI.$PA"
+  if [ "$BUMP" = "patch" ] && [ -n "$HOTFIX" ]; then NEWBASE="$NEWBASE.$HOTFIX"; fi
 fi
 
 if [ "$CHANNEL" = "release" ]; then

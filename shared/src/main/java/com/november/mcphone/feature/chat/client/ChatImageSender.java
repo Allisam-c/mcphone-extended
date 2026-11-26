@@ -219,7 +219,7 @@ public final class ChatImageSender {
 
         // 上限在这里取，不在后台线程里取：那是服主的配置（连上来时同步过来的），
         // 读它是主线程的事，而且一次上传从头到尾该按同一个数来
-        final int maxBytes = com.november.mcphone.core.ServerConfig.clientChatImageMaxBytes();
+        final int maxBytes = ChatImage.maxBytes();
 
         Util.backgroundExecutor().execute(() -> {
             Attempt attempt;
@@ -489,6 +489,7 @@ public final class ChatImageSender {
     private static void tell(String translationKey) {
         var player = Minecraft.getInstance().player;
         // 与服务端拒收时同一个位置：动作栏。玩家的眼睛正看着手机屏幕，聊天框那一行他看不见
-        if (player != null) com.november.mcphone.platform.PlayerAccess.message(player, Component.translatable(translationKey), true);
+        if (player != null) com.november.mcphone.platform.client.ClientMessages.show(
+                player, Component.translatable(translationKey), true);
     }
 }

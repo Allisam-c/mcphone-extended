@@ -1,5 +1,6 @@
 package com.november.mcphone.platform;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.network.chat.Component;
@@ -24,5 +25,11 @@ public final class PlayerAccess {
     public static void teleport(net.minecraft.server.level.ServerPlayer player,net.minecraft.server.level.ServerLevel level,
                                 double x,double y,double z,float yaw,float pitch) {
         player.teleportTo(level,x,y,z,yaw,pitch);
+    }
+    public static String dimensionId(net.minecraft.server.level.ServerPlayer player) {
+        return player.level().dimension().location().toString();
+    }
+    public static void drop(Player p,ItemStack stack,boolean dropAround) {
+        p.drop(stack,dropAround);
     }
 }

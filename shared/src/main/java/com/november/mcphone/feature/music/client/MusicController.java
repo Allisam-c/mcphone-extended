@@ -37,7 +37,13 @@ public final class MusicController {
     /** 只在一首真正放完时清零，【不】在 play() 成功时清：否则「打开成功却无声」的文件会让跳歌永远转不完 */
     private static int consecutiveFailures;
 
+    /** mcphone.music.enabled=false 时整个音乐模块停用：不入队、不播放、不重试 */
+    private static boolean musicEnabled() {
+        return Boolean.parseBoolean(System.getProperty("mcphone.music.enabled", "true"));
+    }
+
     public static void play(List<Track> tracks, int at) {
+        if (!musicEnabled()) return;
         if (tracks.isEmpty() || at < 0 || at >= tracks.size()) return;
 
         queue = List.copyOf(tracks);
@@ -164,6 +170,7 @@ public final class MusicController {
 
     /** 只放 LOCAL 的；SHARED（外放）由服务端播，这道判断留作防线，别拿空流去喂音频通道 */
     private static boolean openAndPlay(Track track) {
+        if (!musicEnabled()) return false;
         if (track.kind() != Track.Kind.LOCAL) return false;
 
         MusicSource source = MusicSources.of(track);

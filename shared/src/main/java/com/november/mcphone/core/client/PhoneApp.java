@@ -7,6 +7,7 @@ import com.november.mcphone.api.client.app.IPhoneApp;
 import com.november.mcphone.core.client.PhoneSkin;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.resources.language.I18n;
+import net.minecraft.locale.Language;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 
@@ -106,7 +107,7 @@ public abstract class PhoneApp implements IPhoneApp {
     @Override
     public String getDescription() {
         String key = "mcphone.app." + path + ".desc";
-        return I18n.exists(key) ? I18n.get(key) : "";
+        return Language.getInstance().has(key) ? I18n.get(key) : "";
     }
 
     @Override

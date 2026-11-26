@@ -1,8 +1,8 @@
-# MCphone
+# MCphone-More versions
 
 把一部能用的智能手机塞进 Minecraft —— 拍照、翻相册、换壁纸、听歌、聊天、装 App。
 
-**Minecraft 26.1.2**（NeoForge 26.1.2.100+、Java 25）· **Minecraft 1.21.11**（NeoForge 21.11.48+ / Fabric、Java 21）· **Minecraft 1.21.1**（NeoForge 21.1.200+ / Fabric）· **Minecraft 1.20.1**（Forge 47.4.0+ / Fabric）· 客户端与服务端都需安装
+**Minecraft 26.3 / 26.2 / 26.1.2**（NeoForge / Fabric、Java 25）· **Minecraft 1.21.1**（NeoForge / Fabric）· **Minecraft 1.20.1**（Forge 47.4.0+）· 客户端与服务端都需安装
 
 [下载：Modrinth](https://modrinth.com/mod/mcphone) ·
 [CurseForge](https://www.curseforge.com/minecraft/mc-mods/mcphone) ·
@@ -23,7 +23,7 @@ wiki 是文档的唯一真源，仓库里不再另存一份。
 十五个内建 App：相机、相册、音乐、聊天、时钟、天气、记事本、末影箱、传送石、浏览器、阅读、任务书、终端、应用商店、设置。
 手机放进副手可挂到画面上；主屏可拖动排序与分页；界面可缩放；整套 UI 可用资源包换肤。
 
-**MCphone 自己一个前置都没有。** 装了 Curios、Waystones、MCEF、NetMusic、Patchouli、GuideME、
+**MCphone-More versions 自己一个前置都没有。** 装了 Curios、Waystones、MCEF、NetMusic、Patchouli、GuideME、
 沉浸工程、FTB Quests、AE2 / Refined Storage / Tom's Simple Storage 会各多一块内容，不装一切照常。
 详见 [wiki → 可选依赖](../../wiki/Getting-Started#可选依赖)。
 
@@ -33,22 +33,20 @@ wiki 是文档的唯一真源，仓库里不再另存一份。
 按分支划分时，非主力分支的更新依赖额外的「追平」提交，其时机不受任何机制约束，
 老版本因而长期滞后。
 
-支持哪些目标由 [`versions/targets.json`](versions/targets.json) 声明 ——
-每个 Minecraft 版本都有 Forge / NeoForge / Fabric 三条，正式发布矩阵中的目标：
+支持哪些目标由 [`versions/targets.json`](versions/targets.json) 声明。
+当前统一高版本分支实际构建八个目标：
 
 | 目标 | Minecraft | 加载器 | 状态 |
 |---|---|---|---|
+| `26.1.2-fabric` | 26.1.2 | Fabric | 产物进 Release |
 | `26.1.2-neoforge` | 26.1.2 | NeoForge | 产物进 Release |
-| `1.21.11-fabric` | 1.21.11 | Fabric | 产物进 Release |
-| `1.21.11-neoforge` | 1.21.11 | NeoForge | 产物进 Release |
+| `26.2-fabric` | 26.2 | Fabric | CI 构建，待实机完整验收 |
+| `26.2-neoforge` | 26.2 | NeoForge | CI 构建，待实机完整验收 |
+| `26.3-fabric` | 26.3 | Fabric | CI 构建，已完成加载冒烟 |
+| `26.3-neoforge` | 26.3 | NeoForge | CI 构建，已完成加载冒烟 |
 | `1.21.1-fabric` | 1.21.1 | Fabric | 产物进 Release |
 | `1.21.1-neoforge` | 1.21.1 | NeoForge | 产物进 Release |
 | `1.20.1-forge` | 1.20.1 | Forge | 产物进 Release |
-| `1.20.1-fabric` | 1.20.1 | Fabric | 产物进 Release |
-
-Minecraft 1.20.1 Fabric 需要 Java 17、Fabric Loader 0.16.14+ 和 Fabric API 0.92.2+1.20.1 或更新的 1.20.1 版本。该目标由 Java 21 启动 Gradle，并使用 Java 17 工具链编译。
-
-Minecraft 1.21.11 Fabric 需要 Java 21、Fabric Loader 0.19.5+ 和适用于 1.21.11 的 Fabric API。
 
 代码按共用范围分层：`shared/` 全部目标共用，`layers/` 下按 Minecraft 版本或加载器
 再分，`platforms/<目标名>/` 是目标专有。各目标的 Gradle、Java 版本可以不同，

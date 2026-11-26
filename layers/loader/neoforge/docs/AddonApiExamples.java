@@ -1,6 +1,5 @@
 package com.example.mcphoneaddon;
 
-import com.mojang.blaze3d.systems.RenderSystem;
 import com.november.mcphone.api.MCphoneApi;
 import com.november.mcphone.api.client.app.IPhoneApp;
 import com.november.mcphone.api.client.app.RequiredMod;
@@ -13,6 +12,7 @@ import com.november.mcphone.api.cost.EmcWallets;
 import com.november.mcphone.api.cost.IAppPriceProvider;
 import com.november.mcphone.api.cost.ICost;
 import com.november.mcphone.api.cost.IEmcWallet;
+import com.november.mcphone.core.client.GuiUtil;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.network.chat.Component;
@@ -74,18 +74,15 @@ public final class AddonApiExamples {
             return List.of(new RequiredMod("someothermod", "Some Other Mod（显示名）"));
         }
 
-        // 文档「动态图标」与「记得自己开混合」那两段
+        // 文档「动态图标」那一段
         private static final int FRAMES = 8;
         private static final int FRAME_MS = 100;
 
         @Override
         public void renderIcon(GuiGraphics g, int x, int y, int size, float partialTick) {
             int frame = (int) ((System.currentTimeMillis() / FRAME_MS) % FRAMES);
-            RenderSystem.enableBlend();
-            RenderSystem.defaultBlendFunc();
-            g.blit(getIconTexture(), x, y, size, size,
+            GuiUtil.drawTexture(g, getIconTexture(), x, y, size, size,
                     frame * size, 0, size, size, size * FRAMES, size);
-            RenderSystem.disableBlend();
         }
     }
 

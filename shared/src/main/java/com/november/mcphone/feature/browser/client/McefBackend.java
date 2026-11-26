@@ -2,6 +2,8 @@ package com.november.mcphone.feature.browser.client;
 
 import com.cinemamod.mcef.MCEF;
 import com.cinemamod.mcef.MCEFBrowser;
+import com.november.mcphone.platform.client.Draw;
+import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.network.chat.Component;
 
 /**
@@ -46,6 +48,12 @@ public final class McefBackend implements IBrowserBackend {
         @Override
         public int textureId() {
             return handle.getRenderer().getTextureID();
+        }
+
+        @Override
+        public void render(GuiGraphics g, int x, int y, int width, int height) {
+            int texture = textureId();
+            if (texture > 0) Draw.browserFrame(g, texture, x, y, width, height);
         }
 
         @Override

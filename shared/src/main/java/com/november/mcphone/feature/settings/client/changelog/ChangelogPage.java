@@ -4,6 +4,7 @@ import com.november.mcphone.core.client.FontPalette;
 import com.november.mcphone.core.client.FontPreset;
 import com.november.mcphone.core.client.GuiUtil;
 import com.november.mcphone.core.client.PhoneTheme;
+import com.november.mcphone.platform.client.SystemFiles;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
@@ -145,7 +146,7 @@ public final class ChangelogPage {
         if (button != 0) return false;
         if (hitsCloseButton(mx, my)) return true;
         for (var link : links) if (link.contains(mx, my)) {
-            net.minecraft.Util.getPlatform().openUri(link.url());
+            SystemFiles.openUri(link.url());
             break;
         }
         return false;

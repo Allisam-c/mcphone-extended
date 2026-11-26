@@ -11,6 +11,7 @@ import com.november.mcphone.core.client.UnreadBadge;
 import com.november.mcphone.core.client.home.HomeInput.FolderDrag;
 import com.november.mcphone.platform.ResourceIds;
 import com.november.mcphone.platform.client.EditBoxes;
+import com.november.mcphone.platform.client.Transforms;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.EditBox;
@@ -153,12 +154,15 @@ public final class HomeFolderView {
     private void drawTitle(GuiGraphics g, HomeArrangement.Folder folder, int mouseX, int mouseY) {
         String title = picker ? label("mcphone.home.folder.choose") : folder.name();
         boolean hovered = !picker && onTitle(mouseX, mouseY);
-        g.pose().pushPose();
-        g.pose().translate(grid.titleLeft(), grid.titleY(), 0);
-        g.pose().scale(TITLE_SCALE, TITLE_SCALE, 1);
-        g.drawString(font, GuiUtil.truncate(font, title, (int) (grid.titleWidth() / TITLE_SCALE)), 0, 0,
-                hovered ? ACCENT : TEXT, !picker);
-        g.pose().popPose();
+        Transforms.push(g);
+        try {
+            Transforms.translate(g, grid.titleLeft(), grid.titleY());
+            Transforms.scale(g, TITLE_SCALE, TITLE_SCALE);
+            g.drawString(font, GuiUtil.truncate(font, title, (int) (grid.titleWidth() / TITLE_SCALE)), 0, 0,
+                    hovered ? ACCENT : TEXT, !picker);
+        } finally {
+            Transforms.pop(g);
+        }
     }
 
     private RenameBar renameBar() {
@@ -171,15 +175,14 @@ public final class HomeFolderView {
         RenameBar bar = renameBar();
         backdrop.drawRenameSurface(g, bar.left(), bar.top(), bar.width(), RENAME_HEIGHT);
         rename.setWidth(bar.textWidth());
-        g.pose().pushPose();
+        Transforms.push(g);
         try {
-            g.pose().translate(bar.textLeft(), bar.textTop(), 0);
-            g.pose().scale(TITLE_SCALE, TITLE_SCALE, 1);
-            g.flush();
-            rename.render(g, (int) ((mouseX - bar.textLeft()) / TITLE_SCALE),
+            Transforms.translate(g, bar.textLeft(), bar.textTop());
+            Transforms.scale(g, TITLE_SCALE, TITLE_SCALE);
+            EditBoxes.render(rename, g, (int) ((mouseX - bar.textLeft()) / TITLE_SCALE),
                     (int) ((mouseY - bar.textTop()) / TITLE_SCALE), partialTick);
         } finally {
-            g.pose().popPose();
+            Transforms.pop(g);
         }
     }
 
@@ -243,7 +246,7 @@ public final class HomeFolderView {
                 rename = null;
             } else {
                 double textX = Math.max(0, Math.min(bar.textWidth() - 1, (x - bar.textLeft()) / TITLE_SCALE));
-                rename.mouseClicked(textX, font.lineHeight / 2.0, button);
+                EditBoxes.click(rename, textX, font.lineHeight / 2.0, button);
             }
             return;
         }
@@ -320,7 +323,7 @@ public final class HomeFolderView {
         if (key == 256) { back(); return true; }
         if (rename != null) {
             if (key == 257 || key == 335) saveRename();
-            else rename.keyPressed(key, scan, modifiers);
+            else EditBoxes.key(rename, key, scan, modifiers);
             return true;
         }
         if (key == 263 || key == 262) {
@@ -332,7 +335,7 @@ public final class HomeFolderView {
 
     public void charTyped(int codePoint, int modifiers) {
         if (rename == null || !Character.isValidCodePoint(codePoint)) return;
-        if (Character.isBmpCodePoint(codePoint)) rename.charTyped((char) codePoint, modifiers);
+        if (Character.isBmpCodePoint(codePoint)) EditBoxes.character(rename, (char) codePoint, modifiers);
         else rename.insertText(new String(Character.toChars(codePoint)));
     }
 

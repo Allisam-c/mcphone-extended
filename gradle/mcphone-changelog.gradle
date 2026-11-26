@@ -40,14 +40,14 @@ abstract class GeneratePhoneChangelog extends DefaultTask {
     static List collect(File directory, String version) {
         def releases = []
         String base = version.split('-', 2)[0]
-        directory.eachFileMatch(~/v\d+\.\d+\.\d+\.md/) { f ->
+        directory.eachFileMatch(~/v\d+\.\d+\.\d+(\.\d+)?\.md/) { f ->
             def entry = parse(f.getText('UTF-8'), f.name.substring(1, f.name.length() - 3))
             if (entry != null) releases << entry
         }
         // 仅构建时排序；游戏中只做当前版本的精确匹配。
         releases.sort { a, b ->
             def x = a.version.tokenize('.')*.toInteger(), y = b.version.tokenize('.')*.toInteger()
-            (y[0] <=> x[0]) ?: (y[1] <=> x[1]) ?: (y[2] <=> x[2])
+            (y[0] <=> x[0]) ?: (y[1] <=> x[1]) ?: (y[2] <=> x[2]) ?: ((y.size() > 3 ? y[3] : 0) <=> (x.size() > 3 ? x[3] : 0))
         }
         def next = new File(directory, 'next.md')
         if (next.exists()) {
@@ -102,6 +102,10 @@ tasks.register('verifyPhoneChangelogFormat') {
         java.nio.file.Files.move(next.toPath(), current.toPath()) // 与既有发版重命名一致。
         assert GeneratePhoneChangelog.collect(notes, '2.0.0')*.version == ['2.0.0', '1.9.0']
         assert GeneratePhoneChangelog.collect(notes, '2.0.0-beta.1')*.version == ['2.0.0', '1.9.0']
+        def hotfix = new File(notes, 'v2.0.0.1.md')
+        hotfix.setText(fixture, 'UTF-8')
+        assert GeneratePhoneChangelog.collect(notes, '2.0.0.1')*.version == ['2.0.0.1', '2.0.0', '1.9.0']
+        java.nio.file.Files.delete(hotfix.toPath())
         boolean missingRejected = false
         try { GeneratePhoneChangelog.collect(notes, '3.0.0') } catch (GradleException expected) { missingRejected = true }
         assert missingRejected: '当前发布版本没有日志时必须失败'

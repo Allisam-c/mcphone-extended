@@ -1,12 +1,10 @@
 package com.november.mcphone.feature.settings.client;
 
-import com.november.mcphone.platform.ResourceIds;
-
 import com.november.mcphone.core.client.ClientPaths;
 import com.november.mcphone.core.PhonePaths;
+import com.november.mcphone.platform.client.Textures;
 import com.mojang.blaze3d.platform.NativeImage;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.renderer.texture.DynamicTexture;
 import net.minecraft.resources.ResourceLocation;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -209,12 +207,29 @@ public final class WallpaperStore {
             int imgW = awtImage.getWidth();
             int imgH = awtImage.getHeight();
 
+            // 转为 Minecraft NativeImage
+            NativeImage nativeImage = new NativeImage(imgW, imgH, false);
+
+            for (int y = 0; y < imgH; y++) {
+                for (int x = 0; x < imgW; x++) {
+                    int argb = awtImage.getRGB(x, y);
+                    int a = (argb >> 24) & 0xFF;
+                    int r = (argb >> 16) & 0xFF;
+                    int g = (argb >> 8) & 0xFF;
+                    int b = argb & 0xFF;
+                    // ARGB → ABGR (Minecraft NativeImage 内部格式)
+                    int abgr = (a << 24) | (b << 16) | (g << 8) | r;
+                    Textures.setPixelABGR(nativeImage, x, y, abgr);
+                }
+            }
+
             // 注册为动态纹理 —— 使用图片原始尺寸。
             // 键里带一个只增不减的序号，理由见 textureSeq
             String texKey = "wp_" + (textureSeq++) + "_"
                     + displayName.toLowerCase().replaceAll("[^a-z0-9_]", "_");
-            ResourceLocation texLoc = ResourceIds.create("mcphone", texKey);
-            registerImage(texLoc, awtImage);
+            ResourceLocation texLoc = ResourceLocation.fromNamespaceAndPath("mcphone", texKey);
+            var dynTex = Textures.dynamicTexture(() -> texKey, nativeImage);
+            Minecraft.getInstance().getTextureManager().register(texLoc, dynTex);
 
             WALLPAPERS.add(new WallpaperEntry(fileName, displayName, texLoc, imgW, imgH, createPreview(awtImage)));
             LOGGER.debug("已加载壁纸: {} ({}×{})", fileName, imgW, imgH);
@@ -245,23 +260,6 @@ public final class WallpaperStore {
             graphics.dispose();
         }
         return preview;
-    }
-
-    private static void registerImage(ResourceLocation texture, BufferedImage image) {
-        NativeImage pixels = new NativeImage(image.getWidth(), image.getHeight(), false);
-        try {
-            for (int y = 0; y < image.getHeight(); y++) {
-                for (int x = 0; x < image.getWidth(); x++) {
-                    int argb = image.getRGB(x, y);
-                    int abgr = (argb & 0xFF00FF00) | ((argb & 0xFF) << 16) | ((argb >>> 16) & 0xFF);
-                    pixels.setPixelRGBA(x, y, abgr);
-                }
-            }
-            Minecraft.getInstance().getTextureManager().register(texture, new DynamicTexture(pixels));
-        } catch (RuntimeException | Error e) {
-            pixels.close();
-            throw e;
-        }
     }
 
     //  导入

@@ -3,6 +3,7 @@ package com.november.mcphone.feature.chat.client.contextmenu;
 import com.november.mcphone.core.client.FontPalette;
 import com.november.mcphone.core.client.GuiUtil;
 import com.november.mcphone.feature.chat.client.ChatUi;
+import com.november.mcphone.platform.client.Transforms;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.network.chat.Component;
@@ -61,13 +62,13 @@ public final class ChatContextMenuView {
             int available = bounds.x()+bounds.width()-ChatContextMenuLayout.PAD-layout.textX();
             String label = GuiUtil.truncate(font,Component.translatable(entry.labelKey()).getString(),
                     Math.max(0,(int)(available/SCALE)));
-            g.pose().pushPose();
+            Transforms.push(g);
             try {
                 // 与图标共用行中心；字体底部两像素空白不参与视觉居中。
-                g.pose().translate(layout.textX(),centerY-inkHeight/2f,0);
-                g.pose().scale(SCALE,SCALE,1);
+                Transforms.translate(g,layout.textX(),centerY-inkHeight/2f);
+                Transforms.scale(g,SCALE,SCALE);
                 g.drawString(font,label,0,0,color,false);
-            } finally { g.pose().popPose(); }
+            } finally { Transforms.pop(g); }
         }
     }
 }

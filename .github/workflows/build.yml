@@ -16,7 +16,7 @@ name: Build & Upload
 # 串行还有个实际问题：每个目标都要解一遍 Minecraft，串着跑既慢又吃内存。
 on:
   push:
-    branches: [master, main]
+    branches: [master, main, 'port/**']
   pull_request:
     branches: [master, main]
 
@@ -65,7 +65,9 @@ jobs:
           fetch-depth: 0
           fetch-tags: true
 
-      # 矩阵横跨 Java 17（1.20.1）、21（1.21.1）与 25（26.1），三者都得在。
+      # 矩阵横跨 Java 17（1.20.1）、21（1.21.1）与 25（26.x），三个都得在。
+      # 25 是 piston-meta 里 26.x 的 java_version —— 不是猜的，但也得有人真装上，
+      # 否则下面挑 JDK 那一句会拿着空的 JAVA_HOME_25_X64 直接失败。
       # ⚠ 这个列表要跟 versions/targets.json 里出现过的 java 值一致。多装一个不要紧，
       # 少装一个会在下面报"JAVA_HOME_17_X64 为空"——挑 JDK 那句取不到就直接失败，
       # 不退回默认 JDK：拿错 JDK 编出来的 class 文件版本不对，而那要等玩家装上才发现。
@@ -277,7 +279,7 @@ jobs:
           BAD=""
           for f in platforms/*/gradle.properties; do
             [ -f "$f" ] || continue
-            HIT=$(grep -nE '^(mod_id|mod_name|mod_license|mod_group_id|mod_version)=' "$f" || true)
+            HIT=$(grep -nE '^(mod_id|mod_name|mod_license|mod_group_id|mod_version|mod_authors|mod_repo_url)=' "$f" || true)
             [ -n "$HIT" ] && BAD="${BAD}${f}:"$'\n'"${HIT}"$'\n'
           done
           if [ -n "$BAD" ]; then
@@ -724,7 +726,12 @@ jobs:
               [ -n "$PLURAL" ] || continue
               if [ "$SINGULAR" = "true" ]; then BAD_DIR="$PLURAL"; WANT="$SINGULARNAME";
               else BAD_DIR="$SINGULARNAME"; WANT="$PLURAL"; fi
-              HITS=$(find "$RES" -path "$RES/data/*/$BAD_DIR/*" -type f 2>/dev/null || true)
+              # 只看 data/<namespace>/ 下的第一层目录。advancement/recipes/
+              # 是正常的进度分类路径，不能被当成数据包顶层目录改名。
+              HITS=$(find "$RES/data" -mindepth 2 -maxdepth 2 -type d -name "$BAD_DIR" 2>/dev/null |
+                while IFS= read -r BAD_ROOT; do
+                  find "$BAD_ROOT" -type f
+                done || true)
               if [ -n "$HITS" ]; then
                 echo "::error::目标 $NAME（Minecraft $MC）的数据包目录名不对：$BAD_DIR/ 应为 $WANT/"
                 printf '%s\n' "$HITS" | sed 's/^/    /'

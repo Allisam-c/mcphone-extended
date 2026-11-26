@@ -7,6 +7,7 @@ import com.mojang.blaze3d.vertex.Tesselator;
 import com.mojang.blaze3d.vertex.VertexFormat;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.resources.ResourceLocation;
 import org.joml.Matrix4f;
 
 /**
@@ -89,6 +90,31 @@ public final class Draw {
         return !g.containsPointInScissor(0, 0);
     }
 
+    /** 旧目标用一次全局 setColor 包住 blit；调用方只需要给出颜色。 */
+    public static void blitTexture(GuiGraphics g, ResourceLocation tex,
+                                   int x, int y, int w, int h,
+                                   float u, float v, int srcW, int srcH,
+                                   int texW, int texH, int color) {
+        boolean tinted = color != -1;
+        if (tinted) {
+            g.setColor(((color >>> 16) & 255) / 255f, ((color >>> 8) & 255) / 255f,
+                    (color & 255) / 255f, ((color >>> 24) & 255) / 255f);
+        }
+        com.mojang.blaze3d.systems.RenderSystem.enableBlend();
+        com.mojang.blaze3d.systems.RenderSystem.defaultBlendFunc();
+        try {
+            g.blit(tex, x, y, w, h, u, v, srcW, srcH, texW, texH);
+        } finally {
+            com.mojang.blaze3d.systems.RenderSystem.disableBlend();
+            if (tinted) g.setColor(1f, 1f, 1f, 1f);
+        }
+    }
+
+    /** 旧目标仍叫 renderItem。 */
+    public static void renderItem(GuiGraphics g, net.minecraft.world.item.ItemStack stack, int x, int y) {
+        g.renderItem(stack, x, y);
+    }
+
     /** 浏览器纹理由本版本负责提交，共用页面不操作全局 GL 状态。 */
     public static void browserFrame(GuiGraphics g,int texture,int x,int y,int w,int h) {
         com.mojang.blaze3d.systems.RenderSystem.disableDepthTest();
@@ -97,6 +123,32 @@ public final class Draw {
         try { texturedQuad(g.pose().last().pose(),x,y,w,h); }
         finally { com.mojang.blaze3d.systems.RenderSystem.setShaderTexture(0,0); com.mojang.blaze3d.systems.RenderSystem.enableDepthTest(); }
     }
+
+    public static void tinted(GuiGraphics g, ResourceLocation tex,
+                              int x, int y, int w, int h, float u, float v,
+                              int srcW, int srcH, int texW, int texH, int argb) {
+        com.mojang.blaze3d.systems.RenderSystem.setShaderColor(
+                ((argb >> 16) & 0xFF) / 255F, ((argb >> 8) & 0xFF) / 255F,
+                (argb & 0xFF) / 255F, ((argb >>> 24) & 0xFF) / 255F);
+        try {
+            g.blit(tex, x, y, w, h, u, v, srcW, srcH, texW, texH);
+        } finally {
+            com.mojang.blaze3d.systems.RenderSystem.setShaderColor(1F, 1F, 1F, 1F);
+        }
+    }
+
+    public static void highlighted(GuiGraphics g, ResourceLocation tex,
+                                   int x, int y, int w, int h, float u, float v,
+                                   int srcW, int srcH, int texW, int texH, float brightness) {
+        float alpha = Math.max(0F, Math.min(1F, brightness - 1F));
+        com.mojang.blaze3d.systems.RenderSystem.setShaderColor(1F, 1F, 1F, alpha);
+        try {
+            g.blit(tex, x, y, w, h, u, v, srcW, srcH, texW, texH);
+        } finally {
+            com.mojang.blaze3d.systems.RenderSystem.setShaderColor(1F, 1F, 1F, 1F);
+        }
+    }
+
     /** 拒绝旧版专用渲染器，避免第三方物品把整页 GUI 渲染打断。 */
     public static boolean canDrawItemIcon(net.minecraft.world.item.ItemStack stack) {
         var mc=net.minecraft.client.Minecraft.getInstance();

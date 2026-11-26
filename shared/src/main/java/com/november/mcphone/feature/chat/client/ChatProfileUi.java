@@ -1,6 +1,7 @@
 package com.november.mcphone.feature.chat.client;
 import com.november.mcphone.core.client.FontPalette;
 import com.november.mcphone.core.client.PhoneSkin;
+import com.november.mcphone.platform.client.Transforms;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.network.chat.Component;
@@ -38,21 +39,18 @@ final class ChatProfileUi {
         ChatUi.buttonText(g,font,ChatUi.truncate(font,text,b.width()-6,ChatLayout.TEXT_SCALE),b.x()+b.width()/2f,b.y()+b.height()/2f,ChatLayout.TEXT_SCALE,color);
     }
     static void icon(GuiGraphics g,Icon icon,float x,float y,int color) {
-        g.pose().pushPose();
+        Transforms.push(g);
         try {
             // 四张图的留白不同：统一可见最长边为 8 像素，补偿心形的轮廓中心偏差。
             float scale = 8f / icon.inkSpan;
-            g.pose().translate(x + 4 - 48 * scale, y + 4 - icon.inkCenterY * scale, 0);
-            g.pose().scale(scale, scale, 1);
-            g.setColor(((color >>> 16) & 255) / 255f, ((color >>> 8) & 255) / 255f,
-                    (color & 255) / 255f, ((color >>> 24) & 255) / 255f);
-            try { if (PhoneSkin.draw(g, icon.element, 0, 0, 96, 96)) return; }
-            finally { g.setColor(1, 1, 1, 1); }
-        } finally { g.pose().popPose(); }
+            Transforms.translate(g, x + 4 - 48 * scale, y + 4 - icon.inkCenterY * scale);
+            Transforms.scale(g, scale, scale);
+            if (PhoneSkin.draw(g, icon.element, 0, 0, 96, 96, color)) return;
+        } finally { Transforms.pop(g); }
         // 资源缺失时沿用几何兜底，保持入口可辨认。
-        g.pose().pushPose();
+        Transforms.push(g);
         try {
-            g.pose().translate(x,y,0);g.pose().scale(1f/3,1f/3,1);
+            Transforms.translate(g,x,y);Transforms.scale(g,1f/3,1f/3);
             switch(icon) {
                 case FAVORITE -> { g.renderOutline(5,3,14,17,color);g.fill(8,14,16,16,color);g.fill(5,20,7,22,color);g.fill(17,20,19,22,color); }
                 case SETTINGS -> { g.renderOutline(5,5,14,14,color);g.renderOutline(9,9,6,6,color);
@@ -62,6 +60,6 @@ final class ChatProfileUi {
                 case SPONSOR -> { g.fill(3,6,10,13,color);g.fill(14,6,21,13,color);g.fill(9,8,15,19,color);
                     g.fill(5,12,19,16,color);g.fill(9,16,15,20,color);g.fill(11,20,13,22,color); }
             }
-        } finally { g.pose().popPose(); }
+        } finally { Transforms.pop(g); }
     }
 }

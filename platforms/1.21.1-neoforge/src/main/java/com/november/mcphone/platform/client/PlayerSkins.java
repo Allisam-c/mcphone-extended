@@ -1,6 +1,7 @@
 package com.november.mcphone.platform.client;
 
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.GuiGraphics;
 import com.november.mcphone.core.client.RememberedPlayerSkins;
 import net.minecraft.client.multiplayer.PlayerInfo;
 import net.minecraft.client.resources.DefaultPlayerSkin;
@@ -64,5 +65,9 @@ public final class PlayerSkins {
             if (info != null) MEMORY.remember(player, () -> textureOf(info));
         }
         return MEMORY.resolve(player, DefaultPlayerSkin.get(player).texture());
+    }
+
+    public static void drawFace(GuiGraphics g, UUID player, int x, int y, int size) {
+        net.minecraft.client.gui.components.PlayerFaceRenderer.draw(g, faceTexture(player), x, y, size);
     }
 }

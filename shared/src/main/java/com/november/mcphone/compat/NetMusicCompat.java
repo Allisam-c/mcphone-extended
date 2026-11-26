@@ -1,11 +1,12 @@
 package com.november.mcphone.compat;
 
-import com.github.tartaricacid.netmusic.item.ItemMusicCD;
 import com.november.mcphone.MCphone;
 import com.november.mcphone.feature.music.NetSong;
 import com.november.mcphone.platform.ModPresence;
 import net.minecraft.world.item.ItemStack;
 
+import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import java.util.Optional;
 
 /**
@@ -23,7 +24,7 @@ import java.util.Optional;
  * 它没有对外的 API 包，所以接触面必须小
  *
  * Waystones 有 {@code net.blay09.mods.waystones.api}，MCEF 有它的公开门面；
- * NetMusic 没有。我们用到的 {@link ItemMusicCD#getSongInfo} 在它的
+ * NetMusic 没有。我们用到的 {@code ItemMusicCD#getSongInfo} 在它的
  * {@code item} 包里，属于内部实现 —— 它改个方法名，我们就断。
  *
  * 所以这里只做两件事：认一认这是不是它的 CD、读出 url/歌名/时长。别的一律
@@ -52,6 +53,12 @@ public final class NetMusicCompat {
     /** NetMusic 的 modid，见它 jar 里的 mods.toml */
     public static final String NETMUSIC_MODID = "netmusic";
 
+    private static final String ITEM_MUSIC_CD_CLASS =
+            "com.github.tartaricacid.netmusic.item.ItemMusicCD";
+
+    private static volatile SongInfoAccess songInfoAccess;
+    private static volatile boolean resolutionAttempted;
+
     public static boolean isLoaded() {
         return ModPresence.isLoaded(NETMUSIC_MODID);
     }
@@ -75,29 +82,64 @@ public final class NetMusicCompat {
         }
     }
 
-    /**
-     * 真正碰 NetMusic 的地方。
-     *
-     * 单独一个方法，只在上面确认装了之后才会被调到 —— 理由见类注释，
-     * 别把它并回去。
-     */
-    private static Optional<NetSong> songOfInternal(ItemStack stack) {
+    /** 真正碰 NetMusic 的地方。只在确认模组已加载后才会走到。 */
+    private static Optional<NetSong> songOfInternal(ItemStack stack) throws ReflectiveOperationException {
+        SongInfoAccess access = songInfoAccess();
+        if (access == null) return Optional.empty();
+
         // getSongInfo 自己就先比了物品类型，不是它那张 CD 直接返回 null，
         // 所以这里不必再判一次 stack.getItem()
-        ItemMusicCD.SongInfo info = ItemMusicCD.getSongInfo(stack);
+        Object info = access.getSongInfo().invoke(null, stack);
         if (info == null) return Optional.empty();
 
-        String url = info.songUrl;
+        String url = (String) access.songUrl().get(info);
         if (url == null || url.isBlank()) return Optional.empty();
 
-        String title = info.songName;
+        String title = (String) access.songName().get(info);
         if (title == null || title.isBlank()) title = url;
+
+        Object seconds = access.songTime().get(info);
+        int duration = seconds instanceof Number number ? number.intValue() : 0;
 
         return Optional.of(new NetSong(
                 clamp(url, NetSong.MAX_URL),
                 clamp(title, NetSong.MAX_TITLE),
-                Math.max(0, info.songTime)));
+                Math.max(0, duration)));
     }
+
+    /**
+     * 解析一次 NetMusic 的内部形状。Class.forName 放在这里，所以本类在
+     * 没有 NetMusic 构件的目标上也能正常加载；调用失败只会让 songOf 返回空。
+     */
+    private static SongInfoAccess songInfoAccess() {
+        SongInfoAccess cached = songInfoAccess;
+        if (cached != null || resolutionAttempted) return cached;
+
+        synchronized (NetMusicCompat.class) {
+            cached = songInfoAccess;
+            if (cached != null || resolutionAttempted) return cached;
+            resolutionAttempted = true;
+
+            try {
+                Class<?> cdClass = Class.forName(ITEM_MUSIC_CD_CLASS);
+                Method getSongInfo = cdClass.getMethod("getSongInfo", ItemStack.class);
+                Class<?> infoClass = getSongInfo.getReturnType();
+                cached = new SongInfoAccess(
+                        getSongInfo,
+                        infoClass.getField("songUrl"),
+                        infoClass.getField("songName"),
+                        infoClass.getField("songTime"));
+                songInfoAccess = cached;
+                MCphone.LOGGER.info("[MCphone] NetMusic CD 兼容层就绪");
+            } catch (ClassNotFoundException | NoSuchMethodException | NoSuchFieldException e) {
+                MCphone.LOGGER.warn("[MCphone] NetMusic 已装，但没找到认识的 CD 数据 API"
+                        + " —— 网络 CD 会按普通唱片处理");
+            }
+            return cached;
+        }
+    }
+
+    private record SongInfoAccess(Method getSongInfo, Field songUrl, Field songName, Field songTime) {}
 
     /**
      * 掐到长度上限。

@@ -21,7 +21,7 @@
     "一个都编不过。也就是说这个字段决定 shared/ 在一个新目标上是全活还是全灭。",
     "",
     "这件事原先只记在 README 的一句散文里，不在模型里、没有闸。现在 guard-version 会查：",
-    "每个目标都要写，而且六个必须一模一样。",
+    "每个目标都要写，而且所有目标必须一模一样。",
     "",
     "Parchment 不在此列：它只补参数名，不改类型名与方法名，加不加都不影响能不能编过。",
     "",
@@ -68,7 +68,6 @@
     "buildable": true,
     "note": "本仓第二个建得起来的目标，产物进 Release。这些值由构建本身验着：gradle.properties 里 forge_version=47.4.23 / forge_version_range=[47.4.0,)，wrapper 是 gradle-8.8-bin.zip，build.gradle 里 toolchain 是 17，构建插件是 ForgeGradle 6（[6.0.54,6.2)）。",
     "layers": [
-      "1.20.1",
       "forge"
     ]
   },
@@ -94,19 +93,21 @@
   "1.20.1-fabric": {
     "minecraft": "1.20.1",
     "loader": "Fabric",
-    "loader_version": "0.16.14",
+    "loader_version": null,
     "server_config_sync": true,
     "mappings": "official",
     "java": 17,
     "gradle": "9.7.1",
     "project": "platforms/1.20.1-fabric",
-    "buildable": true,
-    "note": "Minecraft 1.20.1 Fabric，运行和编译使用 Java 17，Gradle 的 Loom 进程使用 Java 21。Fabric Loader 0.16.14 与 Fabric API 0.92.2+1.20.1 已完成专用服初始化验证。",
-    "layers": [
-      "1.20.1",
-      "fabric"
+    "buildable": false,
+    "unverified": [
+      "loader_version",
+      "gradle"
     ],
-    "gradle_java": 21
+    "note": "尚未开始。java 17 同上。gradle 9.7.1 是照抄 1.21.1-fabric 那一行的占位值 —— 那个数是给 Loom 1.17.20 测出来的，而 1.20.1 未必要用那么新的 Loom，旧 Loom 对 Gradle 的要求低得多。自己查过再填。",
+    "layers": [
+      "fabric"
+    ]
   },
   "1.21.1-forge": {
     "minecraft": "1.21.1",
@@ -162,50 +163,72 @@
     "layers": [
       "1.20.3+",
       "1.20.5+",
+      "1.20.5+-fabric",
       "1.21+",
-      "fabric",
-      "fabric-1.21+"
+      "fabric"
     ]
   },
-  "1.21.11-forge": {
-    "minecraft": "1.21.11",
+  "26.3-forge": {
+    "minecraft": "26.3",
     "loader": "Forge",
     "loader_version": null,
     "server_config_sync": true,
     "mappings": "official",
-    "java": 21,
-    "gradle": "9.2.1",
-    "project": "platforms/1.21.11-forge",
+    "java": 25,
+    "gradle": "8.8",
+    "project": "platforms/26.3-forge",
     "buildable": false,
-    "note": "本轮覆盖 NeoForge 和 Fabric。",
-    "layers": ["1.20.3+", "1.20.5+", "1.21+", "forge"],
-    "unverified": ["loader_version", "gradle"]
+    "unverified": [
+      "gradle"
+    ],
+    "note": "不打算做。本仓约定是 1.21 及以后走 NeoForge，Forge 只留在 1.20.1 那一档；这一行为的是把「26.x 上没有 Forge」写成看得见的一条，而不是让谁哪天想起来再补。取证：maven.neoforged.net 的 neoforge 目录下 26.3 有 26.3.0.0-beta、26.3.0.1、26.3.0.2、26.3.0.3-beta 四个构建，而 26.x 的线上稳定版是 26.1.2.109 与 26.2.0.88；Forge 侧没有 26.3 的构建。loader_version 的这个 null 是决定、不是待查项，所以没列进 unverified。gradle 8.8 是照抄 1.20.1-forge 那行的占位值。",
+    "layers": [
+      "1.20.3+",
+      "1.20.5+",
+      "1.21+",
+      "forge"
+    ]
   },
-  "1.21.11-neoforge": {
-    "minecraft": "1.21.11",
+  "26.3-neoforge": {
+    "minecraft": "26.3",
     "loader": "NeoForge",
-    "loader_version": "21.11.48",
+    "loader_version": "26.3.0.95",
     "server_config_sync": true,
     "mappings": "official",
-    "java": 21,
+    "java": 25,
     "gradle": "9.2.1",
-    "project": "platforms/1.21.11-neoforge",
+    "project": "platforms/26.3-neoforge",
     "buildable": true,
-    "note": "Minecraft 1.21.11 移植已通过构建和试玩验收。",
-    "layers": ["1.20.3+", "1.20.5+", "1.21+", "neoforge", "neoforge-1.21.11+"]
+    "note": "26.3 已完成从骨架到可发布目标的收口。2026-10-29 使用 NeoForge 26.3.0.95、Java 25、ModDevGradle 2.0.147 完成完整构建：180 个任务、139 份断言测试全部通过；相机取景框由 RenderGuiEvent.Post 绘制，该事件位于原版 HUD 隐藏判断之外。最终产物 mcphone-1.12.0.jar 为 3,933,733 字节，SHA-256 538119EF3D17114CD29F63494A1D5703812E734A23BF8136E3AC03CE7BD74292。真实服务器启动到 Done (2.185s)，真实客户端启动到主菜单资源加载完成，13 个 App 注册，AE2 与 Tom's Simple Storage 终端联动接通。真实 26.3 联动包括 Waystones 26.3.0.1+neoforge-26.3、Balm 26.3.0.3+neoforge-26.3、Shogi 26.3.0.3+neoforge-26.3、Curios 17.0.0-beta.3+26.3、AE2 26.3.1-alpha、GuideME 26.3.4-alpha、AE2WTLib API/运行时 26.3.1-beta、Tom's Simple Storage 26.3-2.12.3。MCEF、Refined Storage、Patchouli、NetMusic 仍没有 26.3 构件，原源码在挂载阶段排除，26.3+ 层门面明确报告不可用，没有静默 no-op。客户端冒烟还修正了 26.3 分类注册 API 与 range_dispatch 的 property 字符串格式。旧目标回归通过：1.20.1 Forge 41 份、1.21.1 Fabric 42 份、1.21.1 NeoForge 42 份断言测试；平台孪生 131 对、shared 中立 364 文件、SPI 18 个类及全部结构闸通过。详细逐轮记录见 docs/PORTING-26.3.md。",
+    "layers": [
+      "1.20.3+",
+      "1.20.5+",
+      "1.21+",
+      "26.1-neoforge+",
+      "26.3+",
+      "neoforge"
+    ]
   },
-  "1.21.11-fabric": {
-    "minecraft": "1.21.11",
+  "26.3-fabric": {
+    "minecraft": "26.3",
     "loader": "Fabric",
     "loader_version": "0.19.5",
     "server_config_sync": true,
     "mappings": "official",
-    "java": 21,
-    "gradle": "9.7.1",
-    "project": "platforms/1.21.11-fabric",
+    "java": 25,
+    "gradle": "9.8.2",
+    "project": "platforms/26.3-fabric",
     "buildable": true,
-    "note": "Minecraft 1.21.11 移植已通过构建和试玩验收。",
-    "layers": ["1.20.3+", "1.20.5+", "1.21+", "fabric", "fabric-1.21+"]
+    "note": "已按当前上游 v1.12.0 与 26.3 原生 API 完成适配：Fabric Loader 0.19.5、Fabric API 0.164.0+26.3、Fabric Loom 1.19.3、Gradle 9.8.2、Java 25。本地在 platforms/26.3-fabric 运行完整 build，结果为 BUILD SUCCESSFUL in 1m 2s、178 个任务，139 份断言测试全部通过；compileJava、jar、资源处理、结构闸、加载器孪生、平台孪生、接缝清单与 dist 隔离均包含在同次构建中。",
+    "layers": [
+      "1.20.3+",
+      "1.20.5+",
+      "1.20.5+-fabric",
+      "1.21+",
+      "26.3+",
+      "fabric",
+      "26.2-fabric"
+    ]
   },
   "26.1.2-forge": {
     "minecraft": "26.1.2",
@@ -244,31 +267,28 @@
       "1.20.3+",
       "1.20.5+",
       "1.21+",
-      "neoforge",
-      "neoforge-1.21.11+"
+      "26.1-neoforge+",
+      "neoforge"
     ]
   },
   "26.1.2-fabric": {
     "minecraft": "26.1.2",
     "loader": "Fabric",
-    "loader_version": null,
+    "loader_version": "0.19.5",
     "server_config_sync": true,
     "mappings": "official",
     "java": 25,
-    "gradle": "9.7.1",
+    "gradle": "9.8.2",
     "project": "platforms/26.1.2-fabric",
-    "buildable": false,
-    "note": "本轮仅移植 NeoForge；此加载器尚未开始，版本和构建工具占位值未验证。",
+    "buildable": true,
+    "note": "2026-11-13 使用 Fabric Loom 1.19.3、Gradle 9.8.2、Fabric Loader 0.19.5、Fabric API 0.155.3+26.1.2、Java 25 完成完整 build：179 个任务、140 份断言测试全部通过。26.1.2 原生 API 与 Fabric 加载器接缝在平台内汇合，26.x 不可用联动门面统一由 26.1.2-common+ 层提供；相机取景框按 26.1.2 的 Gui.extractRenderState 尾部注入。产物 mcphone-1.12.0.jar 为 4,924,389 字节，SHA-256 3248EEAC1F42BA322DA12609AB8B19E62D290083BFFF61CF2904340975551D91。专用服务器已加载 51 个模组并完成 MCphone 初始化后停在 EULA；客户端加载 59 个模组、完成资源与音效初始化，13 个 App 注册成功且无 MCphone 异常，未进入世界逐页验收。",
     "layers": [
       "1.20.3+",
       "1.20.5+",
       "1.21+",
       "fabric",
-      "fabric-1.21+"
-    ],
-    "unverified": [
-      "loader_version",
-      "gradle"
+      "1.20.5+-fabric",
+      "26.1.2-common+"
     ]
   }
 }

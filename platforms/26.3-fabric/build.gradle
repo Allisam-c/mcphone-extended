@@ -1,0 +1,206 @@
+plugins {
+    id 'java-library'
+    id 'maven-publish'
+    id 'net.fabricmc.fabric-loom' version "${loom_version}"
+    id 'idea'
+}
+
+def repoRoot = file('../..')
+def repoPropsFile = new File(repoRoot, 'gradle.properties')
+if (!repoPropsFile.exists()) {
+    throw new GradleException("找不到 ${repoPropsFile.canonicalPath}。仓库级身份在仓库根。")
+}
+def repoProps = new Properties()
+repoPropsFile.withInputStream { repoProps.load(it) }
+['mod_id', 'mod_name', 'mod_license', 'mod_group_id', 'mod_version', 'mod_authors'].each { key ->
+    if (!repoProps.containsKey(key)) {
+        throw new GradleException("仓库根的 gradle.properties 缺 ${key}")
+    }
+    ext[key] = repoProps.getProperty(key)
+}
+
+apply from: "${projectDir}/../../gradle/mcphone-layers.gradle"
+apply from: "${projectDir}/../../gradle/mcphone-renames.gradle"
+
+version = mod_version
+group = mod_group_id
+
+base {
+    archivesName = mod_id
+}
+
+java {
+    toolchain.languageVersion = JavaLanguageVersion.of(25)
+}
+
+repositories {
+    maven {
+        name = 'Modrinth'
+        url = 'https://api.modrinth.com/maven'
+        content {
+            includeGroup 'maven.modrinth'
+        }
+    }
+    maven {
+        name = 'modmaven'
+        url = 'https://modmaven.dev'
+        content {
+            includeGroup 'de.mari_023'
+        }
+    }
+    mavenCentral()
+}
+
+def postRenameLayerNames = ['26.1-neoforge+', '26.2-fabric'] as Set
+def postRenameLayers = mcphoneLayers.findAll { it.name in postRenameLayerNames }
+def legacyLayers = mcphoneLayers.findAll { !(it.name in postRenameLayerNames) }
+mcphoneMountSharedJava(sourceSets.main.java,
+        (['shared/src/main/java': new File(repoRoot, 'shared/src/main/java')] +
+         legacyLayers.collectEntries { layer ->
+             [("${layer.relDir}/src/main/java"): layer.javaDir]
+         }),
+        postRenameLayers.collectEntries { layer ->
+            [("${layer.relDir}/src/main/java"): layer.javaDir]
+        })
+
+// 26.3 has platform-specific replacements for these classes, or no compatible
+// third-party artifact. Keep the shared copies out of the Fabric source set.
+sourceSets.main.java.exclude(
+        'shared/src/main/java/com/november/mcphone/core/client/PhonePoseScope.java')
+sourceSets.main.java.exclude(
+        'layers/version/1.21+/src/main/java/com/november/mcphone/core/PhoneItem.java')
+sourceSets.main.java.exclude(
+        'shared/src/main/java/com/november/mcphone/core/client/PhoneItemProperties.java')
+sourceSets.main.java.exclude(
+        'layers/version/1.20.5+/src/main/java/com/november/mcphone/feature/terminal/integration/refinedstorage/**')
+sourceSets.main.java.exclude(
+        'shared/src/main/java/com/november/mcphone/feature/browser/client/McefBackend.java')
+sourceSets.main.java.exclude(
+        'layers/loader/fabric/src/main/java/com/november/mcphone/core/client/AppHotkeyHandler.java')
+sourceSets.main.java.exclude(
+        'layers/loader/fabric/src/main/java/com/november/mcphone/core/client/MCphoneKeyBindings.java')
+
+sourceSets.main.resources {
+    srcDir('../../shared/src/main/resources')
+    mcphoneLayers.each { layer -> srcDir layer.resourcesDir }
+    srcDir('src/generated/resources')
+    exclude('**/*.bbmodel')
+    exclude('src/generated/**/.cache')
+}
+
+tasks.named('processResources', ProcessResources).configure {
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    exclude 'data/mcphone/advancement/recipes/**'
+    filteringCharset = 'UTF-8'
+    def replaceProperties = [
+            minecraft_version: minecraft_version,
+            loader_version   : loader_version,
+            fabric_version   : fabric_version,
+            mod_id           : mod_id,
+            mod_name         : mod_name,
+            mod_license      : mod_license,
+            mod_version      : mod_version,
+            mod_authors      : mod_authors,
+    ]
+    inputs.properties replaceProperties
+    filesMatching(['fabric.mod.json']) {
+        expand replaceProperties
+    }
+}
+
+loom {
+    accessWidenerPath = file('src/main/resources/mcphone.accesswidener')
+}
+
+dependencies {
+    minecraft "com.mojang:minecraft:${minecraft_version}"
+    implementation "net.fabricmc:fabric-loader:${loader_version}"
+    implementation "net.fabricmc.fabric-api:fabric-api:${fabric_version}"
+
+    include implementation("fr.delthas:javamp3:${javamp3_version}")
+    include implementation("com.formdev:flatlaf:${flatlaf_version}")
+
+    // Real Fabric 26.3 integrations.
+    compileOnly "maven.modrinth:waystones:${waystones_version}"
+    compileOnly "maven.modrinth:balm:${balm_version}"
+    compileOnly "maven.modrinth:shogi:${shogi_version}"
+    compileOnly "maven.modrinth:toms-storage:${toms_version}"
+    localRuntime "maven.modrinth:waystones:${waystones_version}"
+    localRuntime "maven.modrinth:balm:${balm_version}"
+    localRuntime "maven.modrinth:shogi:${shogi_version}"
+    localRuntime "maven.modrinth:toms-storage:${toms_version}"
+
+    // No Fabric 26.3 artifact exists. Compile against the Mojang-named
+    // NeoForge API jars only; no runtime mod is installed.
+    compileOnly "maven.modrinth:curios:${curios_version}"
+    compileOnly "maven.modrinth:patchouli:${patchouli_version}"
+    compileOnly "maven.modrinth:ae2:${ae2_version}"
+    compileOnly "maven.modrinth:guideme:${guideme_version}"
+    compileOnly "de.mari_023:ae2wtlib_api:${ae2wtlib_version}"
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+    options.release = 25
+    options.compilerArgs << '-Xmaxerrs' << '100000'
+}
+
+apply from: '../../gradle/mcphone-engine-dependency.gradle'
+apply from: "${projectDir}/../../gradle/mcphone-checks.gradle"
+apply from: "${projectDir}/../../gradle/mcphone-sign.gradle"
+
+ext.mcphoneBindMainApiNames = false
+ext.mcphoneApiBindingsFile = '../../versions/26.3-assertion-api-names.json'
+apply from: '../../gradle/mcphone-port-bindings.gradle'
+
+// 26.3's permission codecs initialize vanilla registries during class
+// initialization. Run these two tests behind an explicit headless bootstrap.
+def loaderAssertionClasses = layout.buildDirectory.dir('classes/loader-assertion-bootstrap')
+def compileLoaderAssertionBootstrap = tasks.register('compileLoaderAssertionBootstrap', JavaCompile) {
+    source = fileTree('src/assertionBootstrap/java') { include '**/*.java' }
+    classpath = sourceSets.main.compileClasspath
+    destinationDirectory = loaderAssertionClasses
+    javaCompiler = javaToolchains.compilerFor(java.toolchain)
+}
+def loaderAssertionFolders = files(layout.buildDirectory.dir('classes/assert-tests'), sourceSets.main.output)
+[
+        DeploymentAuthorityTest: 'com.november.mcphone.core.script.server.DeploymentAuthorityTest',
+        EconomyDataTest: 'com.november.mcphone.core.script.server.economy.EconomyDataTest'
+].each { simple, entry ->
+    tasks.named("assertTest${simple}", JavaExec).configure {
+        dependsOn compileLoaderAssertionBootstrap
+        classpath = files(loaderAssertionClasses, loaderAssertionFolders, sourceSets.main.runtimeClasspath)
+        mainClass = 'com.november.testbootstrap.LoaderAssertionMain'
+        args entry
+        javaLauncher = javaToolchains.launcherFor(java.toolchain)
+        jvmArgs '--enable-native-access=ALL-UNNAMED', '--sun-misc-unsafe-memory-access=allow',
+                '--add-opens=java.base/java.lang.invoke=ALL-UNNAMED'
+        def runtimeDirectory = layout.buildDirectory.dir("assertion-runtime/${simple}").get().asFile
+        workingDir = runtimeDirectory
+        doFirst {
+            if (!runtimeDirectory.isDirectory() && !runtimeDirectory.mkdirs()) {
+                throw new GradleException("无法创建隔离的断言运行目录：${runtimeDirectory}")
+            }
+        }
+    }
+}
+
+publishing {
+    publications {
+        register('mavenJava', MavenPublication) {
+            from components.java
+        }
+    }
+    repositories {
+        maven {
+            url "file://${project.projectDir}/repo"
+        }
+    }
+}
+
+idea {
+    module {
+        downloadSources = true
+        downloadJavadoc = true
+    }
+}

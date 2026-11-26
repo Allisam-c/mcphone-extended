@@ -7,6 +7,8 @@ import com.november.mcphone.core.script.layout.NodeType;
 import com.november.mcphone.core.script.layout.StateRules;
 import com.november.mcphone.core.script.layout.TextMeasure;
 import com.november.mcphone.core.script.layout.UiState;
+import com.november.mcphone.platform.client.EditBoxes;
+import com.november.mcphone.platform.client.Transforms;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.components.EditBox;
@@ -38,10 +40,10 @@ public final class TextInputs {
     private Entry focused;
     private Entry dragged;
 
-    public TextInputs() { this(EditBox::new, (box, x, y, button) -> box.mouseClicked(x, y, button)); }
+    public TextInputs() { this(EditBox::new, EditBoxes::click); }
 
     public TextInputs(Consumer<LayoutNode> onInput) {
-        this(EditBox::new, (box, x, y, button) -> box.mouseClicked(x, y, button),
+        this(EditBox::new, EditBoxes::click,
                 () -> Minecraft.getInstance().keyboardHandler.getClipboard(),
                 text -> Minecraft.getInstance().keyboardHandler.setClipboard(text), onInput);
     }
@@ -236,12 +238,15 @@ public final class TextInputs {
         box.setTextColor(foreground);
         box.setTextColorUneditable(foreground);
         canvas.clipped(entry.x, entry.y, entry.width, entry.height, () -> canvas.transformed(() -> {
-            canvas.graphics().pose().translate(entry.x, entry.y, 0);
-            box.render(canvas.graphics(), canvas.mouseX() - entry.x, canvas.mouseY() - entry.y, canvas.partialTick());
+            Transforms.push(canvas.graphics());
+            Transforms.translate(canvas.graphics(), entry.x, entry.y);
+            EditBoxes.render(box, canvas.graphics(),
+                    canvas.mouseX() - entry.x, canvas.mouseY() - entry.y, canvas.partialTick());
             if (box.getValue().isEmpty() && !box.isFocused()) {
                 String hint = canvas.font().plainSubstrByWidth(node.node.str("placeholder", ""), box.getWidth());
                 canvas.graphics().drawString(canvas.font(), hint, 0, 0, canvas.style().subtleColor(), false);
             }
+            Transforms.pop(canvas.graphics());
         }));
     }
 
@@ -332,7 +337,7 @@ public final class TextInputs {
             blur(); focused = next; next.focus(true);
         } else if (focused.area != null) {
             focused.area.key(key, (modifiers & (2 | 8)) != 0, (modifiers & 1) != 0, clipboard, copy);
-        } else focused.box.keyPressed(key, scan, modifiers);
+        } else EditBoxes.key(focused.box, key, scan, modifiers);
         return true; // keep typing shortcuts away from Minecraft's inventory/navigation bindings
     }
 
@@ -342,7 +347,7 @@ public final class TextInputs {
             if (!Character.isSurrogate(c) && c >= ' ') focused.area.insert(String.valueOf(c));
             return true;
         }
-        focused.box.charTyped(c, modifiers);
+        EditBoxes.character(focused.box, c, modifiers);
         return true;
     }
 
