@@ -140,6 +140,21 @@ public interface IPhoneApp {
     default List<RequiredMod> companionMods() { return List.of(); }
 
     /**
+     * 联动前置是否满足 —— 「联动 App」页用它决定标「已装」还是「未装」。
+     *
+     * 默认按客户端的 ModPresence 判：前置装在客户端的模组（Waystones、
+     * MCEF、FTB Quests）都用它。而像 NeoEssentials 这种<b>纯服务器端</b>的
+     * 联动，客户端永远"没装"，必须覆写本方法换一个判定来源 —— 家园 App
+     * 查的是服务器同步下来的命令树里有没有 sethome。
+     */
+    default boolean companionModsSatisfied() {
+        for (RequiredMod mod : companionMods()) {
+            if (!ModPresence.isLoaded(mod.modId())) return false;
+        }
+        return true;
+    }
+
+    /**
      * 这个 App 在当前环境下存不存在。返回 false 则主屏与商店里都不出现。
      * 默认按 {@link #requiredMods()} 回答，绝大多数情况声明前置就够了。
      *

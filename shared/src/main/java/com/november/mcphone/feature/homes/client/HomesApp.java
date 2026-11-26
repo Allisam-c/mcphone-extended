@@ -75,6 +75,15 @@ public final class HomesApp extends PhoneApp {
         return new HomesPage();
     }
 
+    /**
+     * 联动前置满足 = 服务器启用了家园命令。NeoEssentials 是纯服务器端 mod，
+     * 客户端的 ModPresence 永远是 false，必须查服务器同步下来的命令树。
+     */
+    @Override
+    public boolean companionModsSatisfied() {
+        return serverHasSethome();
+    }
+
     /** 顺手给出一个运行时判定，页面兜底渲染时用同一来源 */
     public static boolean serverHasSethome() {
         ClientPacketListener conn = Minecraft.getInstance().getConnection();
