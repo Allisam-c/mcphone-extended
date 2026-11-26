@@ -1,33 +1,61 @@
 name: Build & Release
-# 打 tag（v*）时自动：构建 26.3-neoforge jar -> 建 Release -> 挂产物。
-# 需要 NAS 上挂一个 act_runner（labels 含 self-hosted），仓库设置里开启 Actions。
-# 依赖从 maven.neoforged.net / mavenCentral 下载，runner 宿主机首跑会拉几百 MB，
-# 之后走 Gradle 缓存，几分钟一版。
+# 零 uses 版本：不依赖 github.com 的任何 action。JDK / Gradle / 全部依赖缓存
+# 走 NAS 宿主机的持久目录（经 config.yaml 的 container.volumes 挂载进任务容器），
+# 首跑配置好之后，后续构建零下载。
+#
+# 宿主机目录约定（Portainer/文件站里建好）：
+#   /volume1/act-runner-files/jdk.tar.gz      JDK 25 Linux tar.gz（PC 下载后上传一次）
+#   /volume1/act-runner-files/jdk/            首次构建时自动解压到这里，此后直接用
+#   /volume1/act-runner-files/gradle-home/    Gradle 用户目录（PC 的 .gradle 拷一份做种子，
+#                                             含 wrapper 发行版与全部依赖缓存）
+#
+# 任务容器还需要能访问 Gitea 本体：config.yaml 的 options 里已注入
+# --add-host=allisam.space:172.17.0.1（容器解析到公网 IP 会自回流超时）。
 
 on:
   push:
     tags:
       - "v*"
 
+env:
+  GITEA_URL: "https://allisam.space:3100"
+
 jobs:
   build:
     runs-on: [self-hosted]
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - name: Checkout（从 Gitea 本机克隆）
+        shell: bash
+        run: |
+          git config --global --add safe.directory '*'
+          rm -rf workspace
+          git clone --depth 1 "$GITEA_URL/$GITEA_REPOSITORY.git" \
+            --branch "$GITHUB_REF_NAME" workspace
+          cd workspace && ls -la
 
-      - name: Setup JDK 25
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: "25"
-        # 若 runner 宿主机已装 JDK 25 且 Adoptium API 不通，可删掉本步，
-        # 改在 build 前设置 JAVA_HOME 指向本机 JDK
+      - name: Prepare JDK 25（已解压则直接用，零下载）
+        shell: bash
+        run: |
+          if [ -x /opt/jdk/bin/java ]; then
+            echo "JDK 已就绪"
+          else
+            echo "首次运行：解压 JDK"
+            [ -f /mnt/jdk.tar.gz ] || { echo "缺少 /mnt/jdk.tar.gz"; exit 1; }
+            mkdir -p /opt/jdk
+            tar -xzf /mnt/jdk.tar.gz -C /opt/jdk --strip-components=1
+          fi
+          echo "JAVA_HOME=/opt/jdk" >> $GITHUB_ENV
+          echo "/opt/jdk/bin" >> $GITHUB_PATH
+          java -version
 
       - name: Build jar
+        shell: bash
+        env:
+          # 依赖与 wrapper 缓存全部来自挂载的 gradle-home，离线构建
+          GRADLE_USER_HOME: /root/.gradle
         run: |
-          cd platforms/26.3-neoforge
-          ./gradlew build --no-daemon
+          cd workspace/platforms/26.3-neoforge
+          ./gradlew build --offline --no-daemon || ./gradlew build --no-daemon
           ls -la build/libs/
 
       - name: Create release & upload jar
@@ -38,25 +66,25 @@ jobs:
           set -e
           API="$GITEA_SERVER_URL/api/v1"
           TAG="$GITHUB_REF_NAME"
-          JAR=$(ls platforms/26.3-neoforge/build/libs/mcphone-*.jar | head -1)
+          JAR="workspace/platforms/26.3-neoforge/build/libs/mcphone-*.jar"
           ASSET="mcphone-26.3-neoforge-${TAG}.jar"
 
-          # 建 Release；tag 已存在（同名 Release）就复用
           REL_ID=$(curl -sf -X POST -H "Authorization: token $GITEA_TOKEN" \
             -H "Content-Type: application/json" \
-            -d "{\"tag_name\":\"$TAG\",\"target_commitish\":\"main\",\"name\":\"MCphone $TAG\",\"body\":\"CI 自动构建（26.3-neoforge，Java 25）\"}" \
-            "$API/repos/$GITEA_REPOSITORY/releases" | python3 -c "import json,sys;print(json.load(sys.stdin).get('id',''))" || true)
+            -d "{\"tag_name\":\"$TAG\",\"name\":\"MCphone $TAG\",\"body\":\"CI 自动构建（26.3-neoforge，Java 25）\"}" \
+            "$API/repos/$GITEA_REPOSITORY/releases" \
+            | python3 -c "import json,sys;print(json.load(sys.stdin).get('id',''))" || true)
           if [ -z "$REL_ID" ]; then
             REL_ID=$(curl -sf -H "Authorization: token $GITEA_TOKEN" \
-              "$API/repos/$GITEA_REPOSITORY/releases/tags/$TAG" | python3 -c "import json,sys;print(json.load(sys.stdin).get('id',''))")
+              "$API/repos/$GITEA_REPOSITORY/releases/tags/$TAG" \
+              | python3 -c "import json,sys;print(json.load(sys.stdin).get('id',''))")
           fi
           if [ -z "$REL_ID" ]; then echo "拿不到 Release id，终止"; exit 1; fi
 
-          # 传 jar（同名先删，保证 Release 里始终是最新构建）
           curl -sf -X DELETE -H "Authorization: token $GITEA_TOKEN" \
             "$API/repos/$GITEA_REPOSITORY/releases/$REL_ID/assets?name=$ASSET" || true
           curl -sf -X POST -H "Authorization: token $GITEA_TOKEN" \
             -H "Content-Type: application/octet-stream" \
-            --data-binary @"$JAR" \
+            --data-binary @$JAR \
             "$API/repos/$GITEA_REPOSITORY/releases/$REL_ID/assets?name=$ASSET"
           echo "已上传 $ASSET 到 Release #$REL_ID"
