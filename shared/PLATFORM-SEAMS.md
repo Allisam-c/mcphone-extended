@@ -328,7 +328,7 @@ Minecraft 1.20.1，在其之前，那一侧只能使用能力。`getCapability(.
 
 <!-- 下面这段由 ./gradlew updateSeamsDoc 生成，别手改：1.20.1-forge -->
 
-#### 共用代码引用了的（94）
+#### 共用代码引用了的（30）
 
 **新平台必须提供同名类型**，否则 shared/ 与共享层编不过。全限定名是硬约束；方法体是抄现成的一份还是自己写，看那个文件。
 
@@ -336,98 +336,34 @@ Minecraft 1.20.1，在其之前，那一侧只能使用能力。`getCapability(.
 - `api.client.ui.PhoneMultiLineEditBox`
 - `compat.WaystonesCompat`
 - `core.ModSounds`　—— 加载器导入
-- `core.PhoneItem`
-- `core.PhoneItemData`
-- `core.PhoneLocation`
 - `core.PhonePlayerData`　—— 加载器导入
-- `core.PhoneSavedData`
 - `core.ServerConfig`　—— 加载器导入
 - `core.client.AppHotkeys`　—— 加载器导入
 - `core.client.ClientConfig`　—— 加载器导入
 - `core.client.PhoneHud`　—— 加载器导入
-- `core.client.PhoneSkinMetadata`
 - `core.menu.ModMenus`　—— 加载器导入
 - `core.net.MCphoneNetwork`　—— 加载器导入
 - `core.net.NetworkHandler`
-- `core.net.PhoneScreenOnPacket`
-- `core.script.server.economy.Scores`
-- `feature.camera.client.CameraFlash`
-- `feature.chat.ChatMessage`
-- `feature.chat.ImageBody`
-- `feature.chat.MessageBody`
-- `feature.chat.TextBody`
-- `feature.chat.group.net.GroupRequestPacket`
-- `feature.chat.net.ChatImageDataPacket`
-- `feature.chat.net.ConversationSummary`
-- `feature.chat.net.DeleteChatMessagePacket`
-- `feature.chat.net.FriendRequestPacket`
-- `feature.chat.net.MarkReadPacket`
-- `feature.chat.net.OnlinePlayer`
-- `feature.chat.net.Relation`
-- `feature.chat.net.RemoveFriendPacket`
-- `feature.chat.net.RequestChatImagePacket`
-- `feature.chat.net.RequestConversationsPacket`
-- `feature.chat.net.RequestMessagesPacket`
-- `feature.chat.net.RequestOnlinePlayersPacket`
-- `feature.chat.net.RespondFriendRequestPacket`
-- `feature.chat.net.SendChatImagePacket`
-- `feature.chat.net.SendChatMessagePacket`
-- `feature.chat.net.TeleportToFriendPacket`
-- `feature.chat.profile.net.ProfileRequestPacket`
-- `feature.enderchest.net.OpenEnderChestPacket`
 - `feature.music.DiscService`　—— 加载器导入
-- `feature.music.NetSong`
-- `feature.music.net.DiscActionPacket`
 - `feature.music.net.MusicNetworking`
-- `feature.music.net.OpenDiscBayPacket`
-- `feature.notes.Note`
-- `feature.notes.NotePrinter`
-- `feature.notes.NoteSummary`
-- `feature.notes.net.DeleteNotePacket`
-- `feature.notes.net.PrintNotePacket`
-- `feature.notes.net.RequestNoteListPacket`
-- `feature.notes.net.RequestNotePacket`
-- `feature.notes.net.SaveNotePacket`
-- `feature.settings.net.SetDeviceNamePacket`
-- `feature.settings.net.SetWallpaperPacket`
-- `feature.store.PurchasedApps`
-- `feature.store.net.PurchaseAppPacket`
-- `feature.store.net.RequestPurchasedAppsPacket`
 - `feature.terminal.TerminalCharger`　—— 加载器导入、注入的方法
-- `feature.terminal.integration.ae2.Ae2Integration`
 - `feature.terminal.integration.refinedstorage.RefinedStorageIntegration`　—— 加载器导入
-- `feature.terminal.net.TerminalActionPacket`
-- `feature.waystone.net.OpenWaystoneSelectionPacket`
 - `platform.CuriosInventories`
 - `platform.GameInfo`
 - `platform.ItemLookup`
-- `platform.LootAccess`
 - `platform.ModPresence`　—— 加载器导入
 - `platform.PlayerAbilities`　—— 加载器导入
 - `platform.PlayerEffects`　—— 加载器导入
-- `platform.Slots`
-- `platform.StackCodecs`
-- `platform.client.CameraGui`
 - `platform.client.ClientMessages`
-- `platform.client.DiscSongs`
-- `platform.client.Draw`
-- `platform.client.EditBoxes`
 - `platform.client.KeyModifiers`　—— 加载器导入
 - `platform.client.NativeExternalBookView`
-- `platform.client.PhoneContainerScreenBase`
 - `platform.client.PhoneDesktopCapture`
-- `platform.client.PhoneScreenBase`
-- `platform.client.PhoneToastBase`
-- `platform.client.PhoneWeather`
-- `platform.client.PlayerSkins`
 - `platform.client.Screens`
-- `platform.client.SystemFiles`
 - `platform.client.Textures`
 - `platform.client.Toasts`
 - `platform.client.Transforms`
-- `platform.client.VanillaAudio`
 
-#### 平台内部的（56）
+#### 平台内部的（27）
 
 只在这个平台自己的代码里用到。新平台不必提供同名类型。
 
@@ -440,39 +376,12 @@ Minecraft 1.20.1，在其之前，那一侧只能使用能力。`getCapability(.
 - `core.ModItems`　—— 加载器导入
 - `core.PhoneScreenOnCleanup`　—— 加载器导入
 - `core.client.PhoneItemProperties`
-- `core.script.net.ScriptNetworking`
 - `feature.camera.client.CameraHandler`　—— 加载器导入
-- `feature.chat.MessageKind`
-- `feature.chat.group.net.GroupNetworking`
-- `feature.chat.group.net.GroupResponsePacket`
-- `feature.chat.net.ChatMessageDeleteResultPacket`
-- `feature.chat.net.ChatNetworking`
-- `feature.chat.net.NewMessagePacket`
-- `feature.chat.net.SyncConversationsPacket`
-- `feature.chat.net.SyncMessagesPacket`
-- `feature.chat.net.SyncOnlinePlayersPacket`
-- `feature.chat.profile.net.ProfileNetworking`
-- `feature.chat.profile.net.ProfileResponsePacket`
-- `feature.music.net.PlayNetSongPacket`
-- `feature.music.net.StopNetSongPacket`
-- `feature.music.net.SyncDiscStatePacket`
-- `feature.notes.net.NotesNetworking`
-- `feature.notes.net.SyncNoteListPacket`
-- `feature.notes.net.SyncNotePacket`
-- `feature.settings.net.SyncWallpaperPacket`
 - `feature.store.net.StoreNetworking`
-- `feature.store.net.SyncPurchasedAppsPacket`
 - `feature.terminal.TerminalSlotSync`　—— 加载器导入
-- `feature.terminal.client.TerminalSlotClient`
-- `feature.terminal.integration.ae2.Ae2wtlibSupport`
-- `feature.terminal.integration.ae2.TerminalSlotLocator`
-- `feature.terminal.net.SyncTerminalSlotPacket`
-- `feature.terminal.net.TerminalNetworking`
 - `platform.CommandPermissions`
 - `platform.Nbt`
 - `platform.PacketIds`
-- `platform.PlayerAccess`
-- `platform.Predicates`
 - `platform.Profiles`
 - `platform.RegistryItems`
 - `platform.ServerTeleports`
@@ -482,8 +391,6 @@ Minecraft 1.20.1，在其之前，那一侧只能使用能力。`getCapability(.
 - `platform.client.ClientTicks`　—— 加载器导入
 - `platform.client.ImageTextures`
 - `platform.client.ItemIcons`
-- `platform.client.PhoneBookIcons`
-- `platform.client.PhoneKeyInput`
 - `platform.client.PlayerFaces`
 - `platform.client.WeatherValues`
 - `platform.client.WorldTime`
@@ -492,7 +399,7 @@ Minecraft 1.20.1，在其之前，那一侧只能使用能力。`getCapability(.
 
 <!-- 下面这段由 ./gradlew updateSeamsDoc 生成，别手改：1.21.1-fabric -->
 
-#### 共用代码引用了的（53）
+#### 共用代码引用了的（48）
 
 **新平台必须提供同名类型**，否则 shared/ 与共享层编不过。全限定名是硬约束；方法体是抄现成的一份还是自己写，看那个文件。
 
@@ -505,8 +412,7 @@ Minecraft 1.20.1，在其之前，那一侧只能使用能力。`getCapability(.
 - `core.PhonePlayerData`
 - `core.PhoneSavedData`
 - `core.ServerConfig`
-- `core.client.AppHotkeys`
-- `core.client.ClientConfig`　—— 加载器导入
+- `core.client.AppHotkeyHandler`
 - `core.client.PhoneHud`
 - `core.client.PhoneSkinMetadata`
 - `core.menu.ModMenus`
@@ -516,15 +422,12 @@ Minecraft 1.20.1，在其之前，那一侧只能使用能力。`getCapability(.
 - `feature.chat.ChatImageStore`
 - `feature.music.DiscService`　—— 1.20.5+ 原版
 - `feature.music.net.MusicNetworking`
-- `feature.terminal.TerminalCharger`　—— 加载器导入
 - `feature.terminal.integration.Terminals`
 - `feature.terminal.integration.ae2.Ae2Integration`
-- `feature.terminal.integration.refinedstorage.RefinedStorageIntegration`
 - `platform.CuriosInventories`
 - `platform.GameInfo`
 - `platform.ItemLookup`
 - `platform.LootAccess`
-- `platform.ModPresence`　—— 加载器导入
 - `platform.PlayerAbilities`
 - `platform.PlayerAccess`
 - `platform.PlayerEffects`
@@ -535,7 +438,6 @@ Minecraft 1.20.1，在其之前，那一侧只能使用能力。`getCapability(.
 - `platform.client.DiscSongs`
 - `platform.client.Draw`
 - `platform.client.EditBoxes`
-- `platform.client.KeyModifiers`
 - `platform.client.NativeExternalBookView`
 - `platform.client.PhoneContainerScreenBase`
 - `platform.client.PhoneDesktopCapture`
@@ -550,7 +452,7 @@ Minecraft 1.20.1，在其之前，那一侧只能使用能力。`getCapability(.
 - `platform.client.Transforms`
 - `platform.client.VanillaAudio`
 
-#### 平台内部的（44）
+#### 平台内部的（38）
 
 只在这个平台自己的代码里用到。新平台不必提供同名类型。
 
@@ -559,12 +461,9 @@ Minecraft 1.20.1，在其之前，那一侧只能使用能力。`getCapability(.
 - `compat.CompatModules`
 - `core.ModCreativeTabs`
 - `core.ModItems`
-- `core.client.AppHotkeyHandler`
-- `core.client.KeyModifier`
 - `core.client.MCphoneKeyBindings`　—— 加载器导入
 - `core.client.PhoneItemProperties`
 - `core.net.RequestThrottle`
-- `core.net.SyncPhoneTerminalPacket`　—— 1.20.5+ 原版
 - `core.net.SyncServerConfigPacket`　—— 1.20.5+ 原版
 - `core.script.net.ScriptNetworking`
 - `feature.camera.client.CameraHandler`
@@ -576,10 +475,8 @@ Minecraft 1.20.1，在其之前，那一侧只能使用能力。`getCapability(.
 - `feature.store.net.StoreNetworking`
 - `feature.terminal.integration.ae2.Ae2wtlibSupport`
 - `feature.terminal.integration.ae2.TerminalSlotLocator`
+- `feature.terminal.integration.refinedstorage.RefinedStorageIntegration`
 - `feature.terminal.net.TerminalNetworking`
-- `mixin.client.KeyboardHandlerMixin`
-- `mixin.client.MouseHandlerMixin`
-- `mixin.client.SoundEngineMixin`
 - `platform.CommandPermissions`
 - `platform.Nbt`
 - `platform.PacketIds`
@@ -590,7 +487,6 @@ Minecraft 1.20.1，在其之前，那一侧只能使用能力。`getCapability(.
 - `platform.SkinMetadata`
 - `platform.WorldIds`
 - `platform.WorldVersions`
-- `platform.client.ClientTicks`　—— 加载器导入
 - `platform.client.ImageTextures`
 - `platform.client.ItemIcons`
 - `platform.client.PhoneBookIcons`
@@ -601,11 +497,57 @@ Minecraft 1.20.1，在其之前，那一侧只能使用能力。`getCapability(.
 
 <!-- 1.21.1-fabric 结束 -->
 
+<!-- 下面这段由 ./gradlew updateSeamsDoc 生成，别手改：1.20.1-fabric -->
+
+#### 共用代码引用了的（18）
+
+**新平台必须提供同名类型**，否则 shared/ 与共享层编不过。全限定名是硬约束；方法体是抄现成的一份还是自己写，看那个文件。
+
+- `MCphone`　—— 加载器导入
+- `api.client.ui.PhoneMultiLineEditBox`
+- `compat.WaystonesCompat`
+- `core.ModSounds`
+- `core.PhonePlayerData`
+- `core.ServerConfig`
+- `core.client.AppHotkeyHandler`
+- `core.client.PhoneHud`
+- `core.menu.ModMenus`
+- `core.net.MCphoneNetwork`　—— 加载器导入
+- `core.net.NetworkHandler`
+- `feature.chat.ChatImageStore`
+- `feature.music.DiscService`
+- `feature.music.net.MusicNetworking`
+- `feature.terminal.integration.Terminals`
+- `platform.CuriosInventories`
+- `platform.PlayerAbilities`
+- `platform.PlayerEffects`
+
+#### 平台内部的（13）
+
+只在这个平台自己的代码里用到。新平台不必提供同名类型。
+
+- `MCphoneClient`　—— 加载器导入
+- `core.ModCreativeTabs`
+- `core.ModItems`
+- `core.PhoneScreenOnCleanup`
+- `core.client.ClientNetworking`　—— 加载器导入
+- `core.client.MCphoneKeyBindings`　—— 加载器导入
+- `core.net.RequestThrottle`
+- `core.net.SyncServerConfigPacket`
+- `feature.camera.client.CameraHandler`
+- `feature.chat.ChatImageUploads`
+- `feature.store.net.StoreNetworking`
+- `feature.terminal.TerminalSlotSync`
+- `mixin.PlayerDataMixin`
+
+<!-- 1.20.1-fabric 结束 -->
+
+
 ## 26.1.2-fabric
 
 <!-- 下面这段由 ./gradlew updateSeamsDoc 生成，别手改：26.1.2-fabric -->
 
-#### 共用代码引用了的（53）
+#### 共用代码引用了的（48）
 
 **新平台必须提供同名类型**，否则 shared/ 与共享层编不过。全限定名是硬约束；方法体是抄现成的一份还是自己写，看那个文件。
 
@@ -618,8 +560,7 @@ Minecraft 1.20.1，在其之前，那一侧只能使用能力。`getCapability(.
 - `core.PhonePlayerData`
 - `core.PhoneSavedData`
 - `core.ServerConfig`
-- `core.client.AppHotkeys`
-- `core.client.ClientConfig`　—— 加载器导入
+- `core.client.AppHotkeyHandler`
 - `core.client.PhoneHud`　—— 加载器导入
 - `core.client.PhoneSkinMetadata`
 - `core.menu.ModMenus`
@@ -629,15 +570,12 @@ Minecraft 1.20.1，在其之前，那一侧只能使用能力。`getCapability(.
 - `feature.chat.ChatImageStore`
 - `feature.music.DiscService`　—— 1.20.5+ 原版
 - `feature.music.net.MusicNetworking`
-- `feature.terminal.TerminalCharger`
 - `feature.terminal.integration.Terminals`
 - `feature.terminal.integration.ae2.Ae2Integration`
-- `feature.terminal.integration.refinedstorage.RefinedStorageIntegration`
 - `platform.CuriosInventories`
 - `platform.GameInfo`
 - `platform.ItemLookup`
 - `platform.LootAccess`
-- `platform.ModPresence`　—— 加载器导入
 - `platform.PlayerAbilities`
 - `platform.PlayerAccess`
 - `platform.PlayerEffects`
@@ -648,7 +586,6 @@ Minecraft 1.20.1，在其之前，那一侧只能使用能力。`getCapability(.
 - `platform.client.DiscSongs`
 - `platform.client.Draw`
 - `platform.client.EditBoxes`
-- `platform.client.KeyModifiers`
 - `platform.client.NativeExternalBookView`
 - `platform.client.PhoneContainerScreenBase`
 - `platform.client.PhoneDesktopCapture`
@@ -663,7 +600,7 @@ Minecraft 1.20.1，在其之前，那一侧只能使用能力。`getCapability(.
 - `platform.client.Transforms`
 - `platform.client.VanillaAudio`
 
-#### 平台内部的（47）
+#### 平台内部的（42）
 
 只在这个平台自己的代码里用到。新平台不必提供同名类型。
 
@@ -672,8 +609,6 @@ Minecraft 1.20.1，在其之前，那一侧只能使用能力。`getCapability(.
 - `compat.CompatModules`
 - `core.ModCreativeTabs`
 - `core.ModItems`
-- `core.client.AppHotkeyHandler`
-- `core.client.KeyModifier`
 - `core.client.MCphoneKeyBindings`　—— 加载器导入
 - `core.net.RequestThrottle`
 - `core.net.SyncPhoneTerminalPacket`　—— 1.20.5+ 原版
@@ -686,11 +621,9 @@ Minecraft 1.20.1，在其之前，那一侧只能使用能力。`getCapability(.
 - `feature.chat.profile.net.ProfileNetworking`　—— 加载器导入
 - `feature.notes.net.NotesNetworking`
 - `feature.store.net.StoreNetworking`
+- `feature.terminal.integration.refinedstorage.RefinedStorageIntegration`
 - `feature.terminal.net.TerminalNetworking`
 - `mixin.client.CameraHudMixin`
-- `mixin.client.KeyboardHandlerMixin`
-- `mixin.client.MouseHandlerMixin`
-- `mixin.client.SoundEngineMixin`
 - `platform.CommandPermissions`
 - `platform.Nbt`
 - `platform.PacketIds`
@@ -701,7 +634,6 @@ Minecraft 1.20.1，在其之前，那一侧只能使用能力。`getCapability(.
 - `platform.SkinMetadata`
 - `platform.WorldIds`
 - `platform.WorldVersions`
-- `platform.client.ClientTicks`　—— 加载器导入
 - `platform.client.ImageTextures`
 - `platform.client.ItemIcons`
 - `platform.client.PhoneKeyInput`
@@ -995,7 +927,7 @@ Minecraft 1.20.1，在其之前，那一侧只能使用能力。`getCapability(.
 - `platform.client.Transforms`
 - `platform.client.VanillaAudio`
 
-#### 平台内部的（37）
+#### 平台内部的（36）
 
 只在这个平台自己的代码里用到。新平台不必提供同名类型。
 
@@ -1006,7 +938,6 @@ Minecraft 1.20.1，在其之前，那一侧只能使用能力。`getCapability(.
 - `core.ModCreativeTabs`　—— 加载器导入
 - `core.ModItems`　—— 加载器导入
 - `core.PhoneSavedDataFiles`
-- `core.net.client.ClientPacketSender`　—— 1.20.5+ 原版、加载器导入
 - `core.script.net.ScriptNetworking`　—— 加载器导入
 - `feature.camera.client.CameraHandler`　—— 加载器导入
 - `feature.chat.net.ChatNetworking`　—— 加载器导入
@@ -1150,7 +1081,7 @@ Minecraft 1.20.1，在其之前，那一侧只能使用能力。`getCapability(.
 
 <!-- 下面这段由 ./gradlew updateSeamsDoc 生成，别手改：26.3-fabric -->
 
-#### 共用代码引用了的（54）
+#### 共用代码引用了的（49）
 
 **新平台必须提供同名类型**，否则 shared/ 与共享层编不过。全限定名是硬约束；方法体是抄现成的一份还是自己写，看那个文件。
 
@@ -1163,8 +1094,7 @@ Minecraft 1.20.1，在其之前，那一侧只能使用能力。`getCapability(.
 - `core.PhonePlayerData`
 - `core.PhoneSavedData`
 - `core.ServerConfig`
-- `core.client.AppHotkeys`
-- `core.client.ClientConfig`　—— 加载器导入
+- `core.client.AppHotkeyHandler`
 - `core.client.PhoneHud`　—— 加载器导入
 - `core.client.PhoneSkinMetadata`
 - `core.menu.ModMenus`
@@ -1175,15 +1105,12 @@ Minecraft 1.20.1，在其之前，那一侧只能使用能力。`getCapability(.
 - `feature.chat.ChatImageStore`
 - `feature.music.DiscService`　—— 1.20.5+ 原版
 - `feature.music.net.MusicNetworking`
-- `feature.terminal.TerminalCharger`
 - `feature.terminal.integration.Terminals`
 - `feature.terminal.integration.ae2.Ae2Integration`
-- `feature.terminal.integration.refinedstorage.RefinedStorageIntegration`
 - `platform.CuriosInventories`
 - `platform.GameInfo`
 - `platform.ItemLookup`
 - `platform.LootAccess`
-- `platform.ModPresence`　—— 加载器导入
 - `platform.PlayerAbilities`
 - `platform.PlayerAccess`
 - `platform.PlayerEffects`
@@ -1194,7 +1121,6 @@ Minecraft 1.20.1，在其之前，那一侧只能使用能力。`getCapability(.
 - `platform.client.DiscSongs`
 - `platform.client.Draw`
 - `platform.client.EditBoxes`
-- `platform.client.KeyModifiers`
 - `platform.client.NativeExternalBookView`
 - `platform.client.PhoneContainerScreenBase`
 - `platform.client.PhoneDesktopCapture`
@@ -1209,7 +1135,7 @@ Minecraft 1.20.1，在其之前，那一侧只能使用能力。`getCapability(.
 - `platform.client.Transforms`
 - `platform.client.VanillaAudio`
 
-#### 平台内部的（48）
+#### 平台内部的（43）
 
 只在这个平台自己的代码里用到。新平台不必提供同名类型。
 
@@ -1218,8 +1144,6 @@ Minecraft 1.20.1，在其之前，那一侧只能使用能力。`getCapability(.
 - `compat.CompatModules`
 - `core.ModCreativeTabs`
 - `core.ModItems`
-- `core.client.AppHotkeyHandler`
-- `core.client.KeyModifier`
 - `core.client.MCphoneKeyBindings`　—— 加载器导入
 - `core.net.RequestThrottle`
 - `core.net.SyncPhoneTerminalPacket`　—— 1.20.5+ 原版
@@ -1233,10 +1157,8 @@ Minecraft 1.20.1，在其之前，那一侧只能使用能力。`getCapability(.
 - `feature.store.net.StoreNetworking`
 - `feature.terminal.integration.ae2.Ae2wtlibSupport`
 - `feature.terminal.integration.ae2.TerminalSlotLocator`
+- `feature.terminal.integration.refinedstorage.RefinedStorageIntegration`
 - `feature.terminal.net.TerminalNetworking`
-- `mixin.client.KeyboardHandlerMixin`
-- `mixin.client.MouseHandlerMixin`
-- `mixin.client.SoundEngineMixin`
 - `platform.CommandPermissions`
 - `platform.Nbt`
 - `platform.PacketIds`
@@ -1247,7 +1169,6 @@ Minecraft 1.20.1，在其之前，那一侧只能使用能力。`getCapability(.
 - `platform.SkinMetadata`
 - `platform.WorldIds`
 - `platform.WorldVersions`
-- `platform.client.ClientTicks`　—— 加载器导入
 - `platform.client.ImageTextures`
 - `platform.client.ItemIcons`
 - `platform.client.PhoneBookIcons`

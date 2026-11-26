@@ -5,7 +5,7 @@ plugins {
     // 得到的最新版。仓库另外两支钉的是 2.0.143，这一支先跟着最新走 —— 26.3 的工件
     // 形态与 1.21 不同（client jar 已经不混淆，见下面「这一支到底要回答什么」），
     // 用旧版插件去喂一个新形态，红了分不清是插件老还是版本新。
-    id 'net.neoforged.moddev' version '2.0.147'
+    id 'net.neoforged.moddev' version '2.0.148'
     id 'idea'
 }
 

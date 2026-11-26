@@ -48,12 +48,6 @@ public final class TextInputs {
                 text -> Minecraft.getInstance().keyboardHandler.setClipboard(text), onInput);
     }
 
-    public TextInputs(Consumer<LayoutNode> onInput) {
-        this(EditBox::new, (box, x, y, button) -> box.mouseClicked(x, y, button),
-                () -> Minecraft.getInstance().keyboardHandler.getClipboard(),
-                text -> Minecraft.getInstance().keyboardHandler.setClipboard(text), onInput);
-    }
-
     TextInputs(Factory factory, Pointer pointer) {
         this(factory, pointer, () -> Minecraft.getInstance().keyboardHandler.getClipboard(),
                 text -> Minecraft.getInstance().keyboardHandler.setClipboard(text));
