@@ -7,6 +7,7 @@ import com.november.mcphone.api.cost.IAppPriceProvider;
 import com.november.mcphone.api.cost.ICost;
 import com.november.mcphone.platform.ItemLookup;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.Items;
 
@@ -37,6 +38,14 @@ public final class BuiltinAppPrices implements IAppPriceProvider {
         if (warpStone != Items.AIR) {
             out.put(app("waystone"), ICost.of(warpStone, 1));
         }
+
+        // 家园：一张床，任意颜色都行 —— ICost.matching 就是给这种"同物品不同变体"
+        // 的场景准备的（书与笔那条款的同类用法）
+        out.put(app("homes"), ICost.matching(
+                stack -> stack.getItem() instanceof net.minecraft.world.item.BlockItem bi
+                        && bi.getBlock() instanceof net.minecraft.world.level.block.AbstractBedBlock,
+                1,
+                Component.translatable("mcphone.cost.homes")));
 
         return out;
     }
