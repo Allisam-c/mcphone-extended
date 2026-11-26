@@ -26,6 +26,23 @@ import org.slf4j.Logger;
 public final class MCphone {
 
     public static final String MODID = "mcphone";
+
+    /**
+     * 开局送手机：每个玩家终身只送一次（标记写在玩家持久数据里，跨存档跟随玩家 NBT）。
+     * 身上或饰品槽已经有手机的话不再重复送 —— 标记丢失的最坏情况也只是白嫖一台。
+     */
+    private static void giftPhoneOnFirstJoin(net.minecraft.server.level.ServerPlayer player) {
+        final String FLAG = "mcphone:phone_given";
+        var persistent = player.getPersistentData();
+        if (persistent.getBoolean(FLAG).orElse(false)) return;
+        persistent.putBoolean(FLAG, true);
+        if (com.november.mcphone.core.PhoneItem.isCarriedBy(player)) return;
+        var gift = new net.minecraft.world.item.ItemStack(com.november.mcphone.core.ModItems.PHONE.get());
+        if (!player.getInventory().add(gift)) {
+            com.november.mcphone.platform.PlayerAccess.drop(player, gift, false);
+        }
+        LOGGER.info("[mcphone] 新玩家 {} 获得了一部手机", player.getName().getString());
+    }
     public static final Logger LOGGER = LogUtils.getLogger();
 
     private static String version = "";
@@ -55,6 +72,7 @@ public final class MCphone {
                     if (event.getEntity() instanceof net.minecraft.server.level.ServerPlayer player) {
                         long epoch = com.november.mcphone.core.script.server.ScriptHost.newEpoch(player);
                         com.november.mcphone.core.script.server.HandshakeService.pushTo(player, epoch);
+                        giftPhoneOnFirstJoin(player);
                     }
                 });
         net.neoforged.neoforge.common.NeoForge.EVENT_BUS.addListener(

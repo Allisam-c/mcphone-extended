@@ -134,12 +134,13 @@ public final class HomesPage implements IPhonePage {
         rowHovered = -1;
         rowDelHovered = -1;
 
-        // 服务器没启用：整页提示
+        // 服务器没启用：整页提示。文案按 \n 手动分行 —— font.split 对中英混排
+        // 的断行会在行尾留大段空白，很难看，短句一行一行画反而整齐
         if (!serverHasHomes()) {
-            int ty = y + 8;
-            for (var line : font.split(Component.translatable("mcphone.homes.no_server"), w - PAD * 2)) {
+            int ty = y + 10;
+            for (String line : Component.translatable("mcphone.homes.no_server").getString().split("\n")) {
                 g.drawString(font, line, x + PAD, ty, FontPalette.preview(), false);
-                ty += font.lineHeight + 1;
+                ty += font.lineHeight + 3;
             }
             return;
         }

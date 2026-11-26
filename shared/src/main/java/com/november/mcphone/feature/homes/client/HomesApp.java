@@ -66,6 +66,10 @@ public final class HomesApp extends PhoneApp {
         // 覆盖了 openPage() 后这里不会被调到；接口要求实现，留空
     }
 
+    /** 不预装：走应用商店的「联动App」页，用一张床（任意颜色）购买 */
+    @Override
+    public boolean isPreinstalled() { return false; }
+
     @Override
     public com.november.mcphone.api.client.ui.IPhonePage openPage() {
         return new HomesPage();
