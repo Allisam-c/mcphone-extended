@@ -8,6 +8,7 @@ import com.november.mcphone.core.client.home.HomeInput.FolderDrag;
 import com.november.mcphone.core.client.home.HomeReflow;
 import com.november.mcphone.core.client.home.HomeReflow.Position;
 import com.november.mcphone.platform.ResourceIds;
+import com.november.mcphone.platform.client.Transforms;
 import net.minecraft.network.chat.Component;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
@@ -305,13 +306,10 @@ public final class HomeGrid {
     }
 
     private void drawFolderImage(GuiGraphics g, List<String> members, int x, int y, int size, float opacity) {
-        g.setColor(1f, 1f, 1f, opacity);
-        try {
-            GuiUtil.drawTexture(g, FOLDER_PLATE, x, y, size, size,
-                    FOLDER_PLATE_TEXTURE_SIZE, FOLDER_PLATE_TEXTURE_SIZE);
-        } finally {
-            g.setColor(1f, 1f, 1f, 1f);
-        }
+        int tint = Math.round(opacity * 255) << 24 | 0xFFFFFF;
+        GuiUtil.drawTexture(g, FOLDER_PLATE, x, y, size, size,
+                0, 0, FOLDER_PLATE_TEXTURE_SIZE, FOLDER_PLATE_TEXTURE_SIZE,
+                FOLDER_PLATE_TEXTURE_SIZE, FOLDER_PLATE_TEXTURE_SIZE, tint);
         drawFolderMembers(g, members, x, y, size, opacity);
     }
 
@@ -389,16 +387,16 @@ public final class HomeGrid {
     }
 
     private static void drawAddBadge(GuiGraphics g, float centerX, float centerY) {
-        g.pose().pushPose();
+        Transforms.push(g);
         try {
-            g.pose().translate(centerX, centerY, 0);
-            g.pose().scale(1f / CUE_SCALE, 1f / CUE_SCALE, 1f);
+            Transforms.translate(g, centerX, centerY);
+            Transforms.scale(g, 1f / CUE_SCALE, 1f / CUE_SCALE);
             drawRoundedRect(g, -15, -15, 15, 15, 15, 0xDA25354D);
             // 淡边在小 GUI 比例下仍能托住较细的浅色笔画。
             drawPlus(g, 10, 4, 0x65D5E9FF);
             drawPlus(g, 9, 3, 0xF4EDF6FF);
         } finally {
-            g.pose().popPose();
+            Transforms.pop(g);
         }
     }
 
@@ -410,10 +408,10 @@ public final class HomeGrid {
 
     private void drawInsertion(GuiGraphics g, HomeLayout.Insertion insertion, int size) {
         float opacity = cueOpacity();
-        g.pose().pushPose();
+        Transforms.push(g);
         try {
-            g.pose().translate((float) insertion.x() - 0.5f / CUE_SCALE, (float) insertion.y(), 0);
-            g.pose().scale(1f / CUE_SCALE, 1f / CUE_SCALE, 1f);
+            Transforms.translate(g, insertion.x() - 0.5f / CUE_SCALE, insertion.y());
+            Transforms.scale(g, 1f / CUE_SCALE, 1f / CUE_SCALE);
             int height = size * CUE_SCALE;
             // HTML 的 2px 对应约 0.8 个逻辑像素。淡边让低缩放时的线芯仍然可辨。
             drawRoundedRect(g, -17, -12, 18, height + 12, 17, withOpacity(0x0B94D7FF, opacity));
@@ -421,7 +419,7 @@ public final class HomeGrid {
             drawRoundedRect(g, -4, -1, 5, height + 1, 4, withOpacity(0x5094D7FF, opacity));
             drawRoundedRect(g, -3, 0, 4, height, 3, withOpacity(DROP_ACCENT, opacity));
         } finally {
-            g.pose().popPose();
+            Transforms.pop(g);
         }
     }
 
@@ -430,10 +428,10 @@ public final class HomeGrid {
     }
 
     private static void drawDragPlate(GuiGraphics g, int x, int y, int width, int height, int fill, int border) {
-        g.pose().pushPose();
+        Transforms.push(g);
         try {
-            g.pose().translate(x, y, 0);
-            g.pose().scale(1f / CUE_SCALE, 1f / CUE_SCALE, 1f);
+            Transforms.translate(g, x, y);
+            Transforms.scale(g, 1f / CUE_SCALE, 1f / CUE_SCALE);
             int w = width * CUE_SCALE;
             int h = height * CUE_SCALE;
             int radius = PLATE_RADIUS;
@@ -453,7 +451,7 @@ public final class HomeGrid {
                 row = end;
             }
         } finally {
-            g.pose().popPose();
+            Transforms.pop(g);
         }
     }
 
@@ -500,12 +498,12 @@ public final class HomeGrid {
             draw.run();
             return;
         }
-        g.pose().pushPose();
+        Transforms.push(g);
         try {
-            g.pose().translate((float) x, (float) y, 0);
+            Transforms.translate(g, x, y);
             draw.run();
         } finally {
-            g.pose().popPose();
+            Transforms.pop(g);
         }
     }
 
@@ -574,15 +572,14 @@ public final class HomeGrid {
         int top = phoneTop + PhoneTheme.STATUS_BAR_HEIGHT;
         int h = dotsTop() - top;
 
-        // setColor 调制透明度后必须还原，否则后面的东西跟着变淡
-        g.setColor(1f, 1f, 1f, progress);
-        boolean drawn = PhoneSkin.draw(g, PhoneSkin.Element.HOME_PAGE_EDGE, x, top, w, h);
-        g.setColor(1f, 1f, 1f, 1f);
+        int tintAlpha = Math.max(0, Math.min(255, Math.round(progress * 255f)));
+        boolean drawn = PhoneSkin.draw(g, PhoneSkin.Element.HOME_PAGE_EDGE, x, top, w, h,
+                0xFFFFFF | tintAlpha << 24);
 
         if (!drawn) {
-            int alpha = (int) (progress * ((PhoneTheme.COLOR_PAGE_EDGE >>> 24) & 0xFF));
+            int fillAlpha = (int) (progress * ((PhoneTheme.COLOR_PAGE_EDGE >>> 24) & 0xFF));
             g.fill(x, top, x + w, top + h,
-                    (alpha << 24) | (PhoneTheme.COLOR_PAGE_EDGE & 0x00FFFFFF));
+                    (fillAlpha << 24) | (PhoneTheme.COLOR_PAGE_EDGE & 0x00FFFFFF));
         }
     }
 

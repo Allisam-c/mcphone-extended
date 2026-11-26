@@ -29,4 +29,9 @@ public final class SystemFiles {
     public static void openInFileManager(Path dir) {
         Util.getPlatform().openPath(dir);
     }
+
+    /** Open a URI with the platform's default handler. */
+    public static void openUri(String uri) {
+        Util.getPlatform().openUri(uri);
+    }
 }

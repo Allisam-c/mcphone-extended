@@ -11,6 +11,7 @@ import com.november.mcphone.core.client.PhoneTheme;
 import com.november.mcphone.core.net.NetworkHandler;
 import com.november.mcphone.feature.settings.client.WallpaperStore;
 import com.november.mcphone.platform.client.PhoneDesktopCapture;
+import com.november.mcphone.platform.client.Textures;
 import net.minecraft.client.gui.GuiGraphics;
 
 import java.awt.Graphics2D;
@@ -227,7 +228,7 @@ public final class HomeBackdrop {
                 for (int x = 0; x < width; x++) {
                     int argb = smooth.getRGB(x, y);
                     int abgr = 0xFF000000 | (argb & 255) << 16 | (argb & 0xFF00) | (argb >> 16 & 255);
-                    pixels.setPixelRGBA(x, y, abgr);
+                    Textures.setPixelABGR(pixels, x, y, abgr);
                 }
             }
             return ImageCodec.upload(pixels, "home_folder_desktop_");
@@ -251,7 +252,7 @@ public final class HomeBackdrop {
                 double coverage = Math.max(0, Math.min(1, 0.5 - distance * PANEL_TEXTURE_SCALE));
                 double rim = Math.max(0, Math.min(1, (distance + 0.75) * PANEL_TEXTURE_SCALE));
                 int alpha = (int) Math.round(coverage * (PANEL_FILL_ALPHA + (PANEL_RIM_ALPHA - PANEL_FILL_ALPHA) * rim));
-                image.setPixelRGBA(x, y, alpha << 24 | PANEL_TINT_ABGR);
+                Textures.setPixelABGR(image, x, y, alpha << 24 | PANEL_TINT_ABGR);
             }
         }
         return ImageCodec.upload(image, "home_folder_frosted_panel_");

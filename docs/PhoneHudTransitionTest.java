@@ -36,6 +36,37 @@ public final class PhoneHudTransitionTest {
         return type.cast(unsafe.getMethod("allocateInstance", Class.class)
                 .invoke(field(unsafe, null, "theUnsafe"), type));
     }
+    /**
+     * 1.21.1 及以前「当前屏幕」是 {@code Minecraft#screen} 字段，26.2 起搬进了
+     * {@code Minecraft#gui}。测试要原地换屏幕但不能触发 {@code Gui#setScreen} 的
+     * {@code removed()} 回调，所以两条路都直接写字段。
+     */
+    private static void screen(Minecraft mc, Object value) throws Exception {
+        try {
+            field(Minecraft.class, mc, "screen", value);
+            return;
+        } catch (NoSuchFieldException moved) {
+            // 26.2+：screen 在 Gui 上，Minecraft 构造未跑时 gui 还是 null。
+        }
+        var guiField = Minecraft.class.getDeclaredField("gui");
+        guiField.setAccessible(true);
+        Object gui = guiField.get(mc);
+        if (gui == null) {
+            gui = withoutConstructor(guiField.getType());
+            guiField.set(mc, gui);
+        }
+        field(gui.getClass(), gui, "screen", value);
+    }
+    private static Object screen(Minecraft mc) throws Exception {
+        try {
+            return field(Minecraft.class, mc, "screen");
+        } catch (NoSuchFieldException moved) {
+            var guiField = Minecraft.class.getDeclaredField("gui");
+            guiField.setAccessible(true);
+            Object gui = guiField.get(mc);
+            return gui == null ? null : field(gui.getClass(), gui, "screen");
+        }
+    }
     private static final class Page implements IPhonePage {
         int closes;
         String draft = "保留草稿";
@@ -73,7 +104,7 @@ public final class PhoneHudTransitionTest {
             field(PhoneHud.class, null, "phone", phone);
             field(PhoneHud.class, null, "interacting", true);
             field(PhoneHud.class, null, "lastAuto", true);
-            mc.screen = phone;
+            screen(mc, phone);
 
             phone.removed();
             check(!desktopInput.pressed() && !folderInput.pressed(), "退出交互会取消主屏和文件夹拖动");
@@ -81,15 +112,15 @@ public final class PhoneHudTransitionTest {
             PhoneScreen other = withoutConstructor(PhoneScreen.class);
             PhoneHud.showFullscreen(other);
             check(PhoneHud.hudPhone() == phone, "其他 Screen 不能解除这部手机的托管");
-            mc.screen = null;
+            screen(mc, null);
             PhoneHud.showFullscreen(phone);
             check(PhoneHud.hudPhone() == phone, "被动 HUD 不能冒充方块键交接");
-            mc.screen = phone;
+            screen(mc, phone);
             field(PhoneScreen.class, phone, "hudDragging", true);
 
             PhoneHud.showFullscreen(phone);
             check(PhoneHud.hudPhone() == null, "全屏后不再由 HUD 持有");
-            check(mc.screen == phone, "保留同一个 Screen，不重复打开");
+            check(screen(mc) == phone, "保留同一个 Screen，不重复打开");
             check(!phone.isHudMode(), "使用全屏布局");
             check(!(boolean) field(PhoneScreen.class, phone, "hudOwned"), "关闭责任交还 removed()");
             check(!(boolean) field(PhoneScreen.class, phone, "hudDragging"), "结束旧坐标系的拖动");
@@ -100,7 +131,7 @@ public final class PhoneHudTransitionTest {
                     && host.page() == page && page.draft.equals("保留草稿"), "保留页面、宿主及草稿状态");
             check(page.closes == 0, "切换本身不能提前关机");
             PhoneHud.showFullscreen(phone);
-            check(page.closes == 0 && mc.screen == phone, "重复请求不重开、不关机");
+            check(page.closes == 0 && screen(mc) == phone, "重复请求不重开、不关机");
             Object generation = field(ChatImageCache.class, null, "generation");
             phone.removed();
             check(page.closes == 1 && host.page() == null, "全屏真正关闭时释放页面");

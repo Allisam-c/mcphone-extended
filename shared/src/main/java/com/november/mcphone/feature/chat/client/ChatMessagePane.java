@@ -7,6 +7,7 @@ import com.november.mcphone.core.client.PlayerAvatar;
 import com.november.mcphone.feature.chat.ChatMessage;
 import com.november.mcphone.feature.chat.client.ChatMessageLayout.Block;
 import com.november.mcphone.feature.chat.client.ChatMessageLayout.BlockType;
+import com.november.mcphone.platform.client.Transforms;
 
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
@@ -256,11 +257,11 @@ final class ChatMessagePane {
         if (!selection.owns(b.message().id()) || selection.start() == selection.end()) return;
         var origin = b.textOrigin();
         int step = ChatUi.lineHeight(font, ChatLayout.TEXT_SCALE);
-        g.pose().pushPose();
+        Transforms.push(g);
         try {
             // 子像素矩形与正文共用原点，不在手机逻辑像素层提前取整。
-            g.pose().translate(bx + origin.x(), y + origin.y(), 0);
-            g.pose().scale(ChatLayout.TEXT_SCALE / 16f, ChatLayout.TEXT_SCALE / 16f, 1);
+            Transforms.translate(g, bx + origin.x(), y + origin.y());
+            Transforms.scale(g, ChatLayout.TEXT_SCALE / 16f, ChatLayout.TEXT_SCALE / 16f);
             for (int line = 0; line < b.text().lines().size(); line++) {
                 for (var span : b.text().lines().get(line).spans(selection.start(), selection.end())) {
                     int top = Math.round(line * step / ChatLayout.TEXT_SCALE * 16f);
@@ -270,7 +271,7 @@ final class ChatMessagePane {
                             Math.round(span.right() * 16f), top + font.lineHeight * 16, PhoneTheme.COLOR_CHAT_SELECTION_EDGE);
                 }
             }
-        } finally { g.pose().popPose(); }
+        } finally { Transforms.pop(g); }
     }
 
     private void renderImageBlock(GuiGraphics g, Font font, Block b, int bx, int y) {

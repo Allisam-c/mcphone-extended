@@ -1,0 +1,26 @@
+{
+  "_comment": [
+    "Name bindings for the 26.1.2 Fabric and 26.2 Fabric/NeoForge targets.",
+    "These targets use the platform/client/port Phone* adapters. 26.3 uses",
+    "versions/name-renames.json and binds directly to GuiGraphicsExtractor."
+  ],
+  "since": "26",
+  "typeRenames": {
+    "ResourceLocation": "Identifier",
+    "GuiGraphics": "PhoneGraphics",
+    "EditBox": "PhoneEditBox",
+    "DynamicTexture": "PhoneDynamicTexture",
+    "PlayerFaceRenderer": "PhonePlayerFaceRenderer",
+    "RenderSystem": "PhoneTextureState"
+  },
+  "methodRenames": {
+    "setScreen": "setScreenAndShow",
+    "writeResourceLocation": "writeIdentifier",
+    "readResourceLocation": "readIdentifier"
+  },
+  "packageRenames": {
+    "net.minecraft.Util": "net.minecraft.util.Util",
+    "net.minecraft.client.gui.GuiGraphics": "com.november.mcphone.platform.client.port.PhoneGraphics",
+    "net.minecraft.client.gui.components.EditBox": "com.november.mcphone.platform.client.port.PhoneEditBox"
+  }
+}

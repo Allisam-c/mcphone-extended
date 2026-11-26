@@ -1,8 +1,5 @@
 package com.november.mcphone.core.script.client.render;
 
-import com.november.mcphone.platform.ResourceIds;
-
-import com.mojang.blaze3d.systems.RenderSystem;
 import com.november.mcphone.MCphone;
 import com.november.mcphone.core.client.GuiUtil;
 import net.minecraft.client.gui.GuiGraphics;
@@ -33,17 +30,11 @@ public final class IconAtlas {
     public static void draw(GuiGraphics g, String name, int x, int y, int size, int argb) {
         if (size <= 0) return;
         if (texture == null) {
-            texture = ResourceIds.create(MCphone.MODID, "textures/script/icons.png");
+            texture = ResourceLocation.fromNamespaceAndPath(MCphone.MODID, "textures/script/icons.png");
         }
         int index = NAMES.indexOf(name);
         if (index < 0) index = NAMES.indexOf("info");
-        RenderSystem.setShaderColor((argb >> 16 & 0xFF) / 255f, (argb >> 8 & 0xFF) / 255f,
-                (argb & 0xFF) / 255f, (argb >>> 24) / 255f);
-        // 着色器颜色是全局状态：不复位的话此后画的一切都被染成这个颜色，关掉这个 App 也还在。别拆掉 finally
-        try {
-            GuiUtil.drawTexture(g, texture, x, y, size, size, index * CELL, 0, CELL, CELL, CELL * NAMES.size(), CELL);
-        } finally {
-            RenderSystem.setShaderColor(1f, 1f, 1f, 1f);
-        }
+        GuiUtil.drawTexture(g, texture, x, y, size, size,
+                index * CELL, 0, CELL, CELL, CELL * NAMES.size(), CELL, argb);
     }
 }

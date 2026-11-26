@@ -3,6 +3,8 @@ package com.november.mcphone.feature.chat.client;
 import com.november.mcphone.core.client.FontPalette;
 import com.november.mcphone.core.client.GuiUtil;
 import com.november.mcphone.core.client.PhoneSkin;
+import com.november.mcphone.platform.client.EditBoxes;
+import com.november.mcphone.platform.client.Transforms;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.EditBox;
@@ -58,13 +60,13 @@ final class ChatContactSearch {
         int color = PhoneSkin.textColor(PhoneSkin.Element.CHAT_INPUT_BAR, 0xFFE0E0E0);
         box.setTextColor(color); box.setTextColorUneditable(color);
         GuiUtil.enableScissor(g, area.x(), area.y(), area.x() + area.width(), area.y() + area.height());
-        g.pose().pushPose();
+        Transforms.push(g);
         try {
-            g.pose().translate(originX, originY, 0);
-            g.pose().scale(ChatLayout.TEXT_SCALE, ChatLayout.TEXT_SCALE, 1);
-            box.render(g, (int) ((mx - originX) / ChatLayout.TEXT_SCALE),
+            Transforms.translate(g, originX, originY);
+            Transforms.scale(g, ChatLayout.TEXT_SCALE, ChatLayout.TEXT_SCALE);
+            EditBoxes.render(box, g, (int) ((mx - originX) / ChatLayout.TEXT_SCALE),
                     (int) ((my - originY) / ChatLayout.TEXT_SCALE), tick);
-        } finally { g.pose().popPose(); GuiUtil.disableScissor(g); }
+        } finally { Transforms.pop(g); GuiUtil.disableScissor(g); }
         if (query().isEmpty() && !focused()) {
             ChatUi.text(g, font, ChatUi.truncate(font,
                     Component.translatable(hint).getString(), area.x() + area.width() - originX - 3,
@@ -78,14 +80,17 @@ final class ChatContactSearch {
         boolean inside = bounds != null && bounds.contains(mx, my);
         if (button == 0) {
             box.setFocused(inside);
-            if (inside) box.mouseClicked((mx - originX) / ChatLayout.TEXT_SCALE,
+            if (inside) EditBoxes.click(box, (mx - originX) / ChatLayout.TEXT_SCALE,
                     Mth.clamp((my - originY) / ChatLayout.TEXT_SCALE, 0, box.getHeight() - 1), button);
         }
         return inside;
     }
     boolean keyPressed(int key, int scan, int modifiers) {
         if (!focused()) return false;
-        box.keyPressed(key, scan, modifiers); return true;
+        EditBoxes.key(box, key, scan, modifiers);
+        return true;
     }
-    boolean charTyped(char c, int modifiers) { return focused() && box.charTyped(c, modifiers); }
+    boolean charTyped(char c, int modifiers) {
+        return focused() && EditBoxes.character(box, c, modifiers);
+    }
 }

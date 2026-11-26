@@ -1,0 +1,15 @@
+{
+  "_comment": "26.3 断言源码的纯改名绑定。主源码已经按 26.x 名字写成，因此只绑定 docs/ 测试；不改注释、字符串或业务逻辑。",
+  "qualified": {
+    "net.minecraft.resources.ResourceLocation": "net.minecraft.resources.Identifier",
+    "net.minecraft.client.gui.GuiGraphics": "net.minecraft.client.gui.GuiGraphicsExtractor"
+  },
+  "names": {
+    "ResourceLocation": "Identifier",
+    "GuiGraphics": "GuiGraphicsExtractor",
+    "drawString": "text",
+    "drawCenteredString": "centeredText",
+    "setScreen": "setScreenAndShow"
+  },
+  "overrides": []
+}

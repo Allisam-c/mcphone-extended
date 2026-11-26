@@ -30,7 +30,7 @@ on:
           - promote
           - custom
       custom_version:
-        description: '自定义版本号（仅当上面选 custom 时填，形如 1.11.0）'
+        description: '自定义版本号（仅当上面选 custom 时填，如 1.11.0 或热修复 1.12.1.1）'
         required: false
         type: string
       release_type:
@@ -47,6 +47,15 @@ on:
         required: false
         type: boolean
         default: false
+      publish_to:
+        description: '第三方发布平台（GitHub Release 始终发布）'
+        required: true
+        type: choice
+        default: both
+        options:
+          - both
+          - curseforge
+          - modrinth
 
 # 默认的 GITHUB_TOKEN 是只读的，不显式提权就推不了 commit、也建不了 Release。
 permissions:
@@ -378,21 +387,22 @@ jobs:
           MODRINTH_TOKEN: ${{ secrets.MODRINTH_TOKEN }}
           CURSEFORGE_ID: ${{ vars.CURSEFORGE_ID }}
           CURSEFORGE_TOKEN: ${{ secrets.CURSEFORGE_TOKEN }}
+          PUBLISH_TO: ${{ inputs.publish_to }}
         run: |
           # 缺凭据就跳过那个平台并留一条 warning，不让整次发版判失败：
           # GitHub Release 此时已经建好了，为一个还没配的令牌把它标成红叉，
           # 只会让人误以为发出去的包有问题。
-          if [ -n "$MODRINTH_ID" ] && [ -n "$MODRINTH_TOKEN" ]; then
+          if [ "$PUBLISH_TO" != "curseforge" ] && [ -n "$MODRINTH_ID" ] && [ -n "$MODRINTH_TOKEN" ]; then
             echo "modrinth=true" >> "$GITHUB_OUTPUT"
           else
             echo "modrinth=false" >> "$GITHUB_OUTPUT"
-            echo "::warning::跳过 Modrinth：变量 MODRINTH_ID 或密钥 MODRINTH_TOKEN 没配"
+            echo "跳过 Modrinth：本次未选择该平台或凭据未配置"
           fi
-          if [ -n "$CURSEFORGE_ID" ] && [ -n "$CURSEFORGE_TOKEN" ]; then
+          if [ "$PUBLISH_TO" != "modrinth" ] && [ -n "$CURSEFORGE_ID" ] && [ -n "$CURSEFORGE_TOKEN" ]; then
             echo "curseforge=true" >> "$GITHUB_OUTPUT"
           else
             echo "curseforge=false" >> "$GITHUB_OUTPUT"
-            echo "::warning::跳过 CurseForge：变量 CURSEFORGE_ID 或密钥 CURSEFORGE_TOKEN 没配"
+            echo "跳过 CurseForge：本次未选择该平台或凭据未配置"
           fi
 
       - name: 这个目标的 jar 与更新日志

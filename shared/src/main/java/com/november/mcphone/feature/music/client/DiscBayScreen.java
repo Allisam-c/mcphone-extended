@@ -5,9 +5,10 @@ import com.november.mcphone.core.client.PhoneChassis;
 import com.november.mcphone.core.client.PhoneScreen;
 import com.november.mcphone.core.client.PhoneScreenOpener;
 import com.november.mcphone.feature.music.menu.DiscBayMenu;
+import com.november.mcphone.platform.client.PhoneContainerScreenBase;
+import com.november.mcphone.platform.client.Screens;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
-import com.november.mcphone.platform.client.PhoneContainerScreenBase;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.player.Inventory;
 
@@ -18,9 +19,9 @@ import net.minecraft.world.entity.player.Inventory;
 public class DiscBayScreen extends PhoneContainerScreenBase<DiscBayMenu> {
 
     public DiscBayScreen(DiscBayMenu menu, Inventory playerInventory, Component title) {
+        // 格子坐标相对于 leftPos/topPos，尺寸必须与 Menu 用同一套基准。
+        // 尺寸走构造：26.x 上这两个字段是 final，四支只能这样递
         super(menu, playerInventory, title, DiscBayMenu.IMAGE_WIDTH, DiscBayMenu.IMAGE_HEIGHT);
-
-        // 格子坐标相对于 leftPos/topPos，尺寸必须与 Menu 用同一套基准
 
         this.titleLabelX = 8;
         this.titleLabelY = 6;
@@ -53,7 +54,7 @@ public class DiscBayScreen extends PhoneContainerScreenBase<DiscBayMenu> {
         Minecraft mc = Minecraft.getInstance();
         if (mc.player == null) return;
 
-        if (PhoneScreenOpener.open(mc.player) && mc.screen instanceof PhoneScreen phone) {
+        if (PhoneScreenOpener.open(mc.player) && Screens.current(mc) instanceof PhoneScreen phone) {
             phone.navigateTo(PhoneScreen.Mode.MUSIC_PLAYER);
         }
     }

@@ -4,16 +4,16 @@ import com.november.mcphone.MCphone;
 import com.november.mcphone.core.client.GuiUtil;
 import com.november.mcphone.feature.reader.BookRef;
 import com.november.mcphone.platform.ModPresence;
+import com.november.mcphone.platform.ItemLookup;
 import com.november.mcphone.platform.ResourceIds;
+import com.november.mcphone.platform.client.Screens;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.player.LocalPlayer;
-import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Items;
 
 import java.lang.reflect.Method;
 import java.util.ArrayList;
@@ -98,7 +98,7 @@ final class ModonomiconSource implements BookSource {
         Api access = resolve();
         if (access == null) return;
 
-        Screen previous = client.screen;
+        Screen previous = Screens.current(client);
         try {
             if (!access.books().containsKey(book.bookId())) {
                 MCphone.LOGGER.warn("[MCphone] Modonomicon 书目中已没有手册 {}", book.bookId());
@@ -107,7 +107,7 @@ final class ModonomiconSource implements BookSource {
             Object address = access.address() == null
                     ? book.bookId() : access.address().invoke(null, book.bookId());
             access.open().invoke(access.gui().invoke(null), address);
-            if (previous != null && client.screen != previous && isBookScreen(client.screen)) {
+            if (previous != null && Screens.current(client) != previous && isBookScreen(Screens.current(client))) {
                 returnScreen = previous;
                 readingPlayer = client.player;
             }
@@ -126,12 +126,12 @@ final class ModonomiconSource implements BookSource {
         if (returnScreen == null) return;
         Minecraft client = Minecraft.getInstance();
         boolean samePlayer = client.player == readingPlayer && readingPlayer.isAlive();
-        if (samePlayer && isBookScreen(client.screen)) return;
+        if (samePlayer && isBookScreen(Screens.current(client))) return;
 
         Screen previous = returnScreen;
         returnScreen = null;
         readingPlayer = null;
-        if (samePlayer && client.screen == null) client.setScreen(previous);
+        if (samePlayer && Screens.current(client) == null) Screens.set(client, previous);
     }
 
     private static boolean isBookScreen(Screen screen) {
@@ -145,8 +145,8 @@ final class ModonomiconSource implements BookSource {
             if (result instanceof ItemStack stack && !stack.isEmpty()) {
                 icons.put(id, stack);
             } else if (result instanceof ResourceLocation itemId) {
-                var item = BuiltInRegistries.ITEM.get(itemId);
-                if (item != Items.AIR) icons.put(id, new ItemStack(item));
+                var item = ItemLookup.get(itemId);
+                if (item != net.minecraft.world.item.Items.AIR) icons.put(id, new ItemStack(item));
             }
         } catch (ReflectiveOperationException | RuntimeException | LinkageError ignored) {
             // A missing cover uses the bookshelf's default icon.

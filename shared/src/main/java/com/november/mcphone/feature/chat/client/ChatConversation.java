@@ -1,15 +1,17 @@
 package com.november.mcphone.feature.chat.client;
 
+import com.mojang.blaze3d.platform.InputConstants;
 import com.november.mcphone.core.client.FontPalette;
 import com.november.mcphone.core.client.GuiUtil;
 import com.november.mcphone.core.client.PhoneTheme;
 import com.november.mcphone.feature.chat.ChatMessage;
+import com.november.mcphone.platform.client.ClientMessages;
+import com.november.mcphone.platform.client.KeyModifiers;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.client.gui.screens.Screen;
 import com.november.mcphone.feature.chat.client.messageaction.ChatMessageActions;
 import com.november.mcphone.feature.chat.TextBody;
 import com.november.mcphone.feature.chat.ImageBody;
@@ -41,7 +43,7 @@ public final class ChatConversation {
                 if (channel != null) channel.delete(message, request);
             }, request -> { if (channel != null) channel.cancelDelete(request); },
             key -> { var player = Minecraft.getInstance().player;
-                if (player != null) com.november.mcphone.platform.PlayerAccess.message(player, Component.translatable(key), true); }, this::favorite, this::replyTo);
+                if (player != null) ClientMessages.show(player, Component.translatable(key), true); }, this::favorite, this::replyTo);
     private UUID peer;
     private long lastRequestMs;
     private List<ChatMessage> markedFrom;
@@ -124,7 +126,7 @@ public final class ChatConversation {
         if (channel.activate()) lastRequestMs = System.currentTimeMillis();
         String error = channel.consumeError();
         if (error != null && Minecraft.getInstance().player != null)
-            com.november.mcphone.platform.PlayerAccess.message(Minecraft.getInstance().player, Component.translatable(error), true);
+            ClientMessages.show(Minecraft.getInstance().player, Component.translatable(error), true);
         tick();
         maybeRefresh();
         maybeMarkRead();
@@ -197,7 +199,7 @@ public final class ChatConversation {
     public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
         if (peer == null) return false;
         if (viewer.isOpen() || hasContextMenu()) return true;
-        if (Screen.isCopy(keyCode) && !messages.selectedText().isEmpty()) {
+        if (KeyModifiers.ctrl() && keyCode == InputConstants.KEY_C && !messages.selectedText().isEmpty()) {
             Minecraft.getInstance().keyboardHandler.setClipboard(messages.selectedText());
             return true;
         }
@@ -273,7 +275,7 @@ public final class ChatConversation {
             submission.rejected();
             // GroupTransport 统一提示文字请求的错误；页面只恢复交互，避免重复提示。
         } else if (result == ChatReplySubmission.Result.TIMEOUT && Minecraft.getInstance().player != null)
-            com.november.mcphone.platform.PlayerAccess.message(Minecraft.getInstance().player,Component.translatable("mcphone.chat.reply.timeout"),true);
+            ClientMessages.show(Minecraft.getInstance().player,Component.translatable("mcphone.chat.reply.timeout"),true);
     }
     private void cancelSubmission() {
         if (submission != null && channel != null) channel.cancelReply(submission.ticket());
@@ -285,7 +287,7 @@ public final class ChatConversation {
         if (submission != null && reply.id().isPresent() && submission.matches(reply.id().get(),composer.draft())) return true;
         if (reply.id().isEmpty() || channel.messages().stream().anyMatch(m -> m.id().equals(reply.id().get()))) return true;
         var player=Minecraft.getInstance().player;
-        if (player != null) com.november.mcphone.platform.PlayerAccess.message(player,Component.translatable("mcphone.chat.reply.unavailable"),true);
+        if (player != null) ClientMessages.show(player,Component.translatable("mcphone.chat.reply.unavailable"),true);
         reply.clear(); cancelReply=null; return false;
     }
 
@@ -360,7 +362,7 @@ public final class ChatConversation {
     }
     private static void favoriteNotice(String result) {
         var player = Minecraft.getInstance().player;
-        if (player != null) com.november.mcphone.platform.PlayerAccess.message(player,Component.translatable("mcphone.chat.favorite."+result),true);
+        if (player != null) ClientMessages.show(player,Component.translatable("mcphone.chat.favorite."+result),true);
     }
 
     private String messageSenderName(ChatMessage message) {

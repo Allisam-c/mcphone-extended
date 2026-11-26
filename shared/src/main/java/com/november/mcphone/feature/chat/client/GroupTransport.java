@@ -35,7 +35,8 @@ final class GroupTransport {
     static void result(GroupReply.Result reply) {
         if (textRequests.remove(reply.request()) == null || reply.status() == com.november.mcphone.feature.chat.group.GroupStatus.OK) return;
         var player = Minecraft.getInstance().player;
-        if (player != null) com.november.mcphone.platform.PlayerAccess.message(player, net.minecraft.network.chat.Component.translatable(reply.status().key()), true);
+        if (player != null) com.november.mcphone.platform.client.ClientMessages.show(
+                player, net.minecraft.network.chat.Component.translatable(reply.status().key()), true);
     }
     static void directory() {
         var current = Minecraft.getInstance().getConnection(); if (current == null) return;

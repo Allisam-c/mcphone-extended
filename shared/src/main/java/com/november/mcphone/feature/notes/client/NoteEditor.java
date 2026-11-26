@@ -9,6 +9,7 @@ import com.november.mcphone.feature.notes.net.RequestNotePacket;
 import com.november.mcphone.feature.notes.net.SaveNotePacket;
 import com.november.mcphone.core.client.FontPalette;
 import com.november.mcphone.api.client.ui.PhoneMultiLineEditBox;
+import com.november.mcphone.platform.client.EditBoxes;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.network.chat.Component;

@@ -1,15 +1,16 @@
 package com.november.mcphone.feature.reader.client.source;
 
 import com.november.mcphone.MCphone;
+import com.november.mcphone.platform.ItemLookup;
 import com.november.mcphone.platform.ResourceIds;
 import com.november.mcphone.platform.client.NativeExternalBookView;
 import com.november.mcphone.platform.client.PhoneScreenBase;
+import com.november.mcphone.platform.client.Screens;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.events.GuiEventListener;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.player.LocalPlayer;
-import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.player.Inventory;
@@ -50,7 +51,7 @@ final class OriginsOfDarkness implements ExternalBook {
 
     @Override
     public boolean isAvailable() {
-        return ExternalBook.super.isAvailable() && BuiltInRegistries.ITEM.get(BOOK) != Items.AIR;
+        return ExternalBook.super.isAvailable() && ItemLookup.get(BOOK) != Items.AIR;
     }
 
     @Override
@@ -60,8 +61,8 @@ final class OriginsOfDarkness implements ExternalBook {
         if (player == null || !isAvailable()) return false;
 
         try {
-            Screen manual = createManual(player.getInventory(), new ItemStack(BuiltInRegistries.ITEM.get(BOOK)));
-            client.setScreen(new ReaderScreen(client.screen, player, manual));
+            Screen manual = createManual(player.getInventory(), new ItemStack(ItemLookup.get(BOOK)));
+            Screens.set(client, new ReaderScreen(Screens.current(client), player, manual));
             return true;
         } catch (ReflectiveOperationException | RuntimeException | LinkageError failure) {
             MCphone.LOGGER.warn("[MCphone] 打开黑暗工艺的《黑暗起源》失败", failure);
@@ -144,7 +145,7 @@ final class OriginsOfDarkness implements ExternalBook {
         @Override
         public void onClose() {
             Minecraft client = Minecraft.getInstance();
-            client.setScreen(client.player == player && player.isAlive() ? parent : null);
+            Screens.set(client, client.player == player && player.isAlive() ? parent : null);
         }
 
         @Override

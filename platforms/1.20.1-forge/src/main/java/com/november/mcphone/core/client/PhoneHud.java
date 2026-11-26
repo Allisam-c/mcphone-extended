@@ -4,6 +4,7 @@ import com.mojang.blaze3d.platform.InputConstants;
 import com.mojang.blaze3d.platform.Window;
 import com.november.mcphone.core.PhoneItem;
 import com.november.mcphone.core.PhoneLocation;
+import com.november.mcphone.platform.client.Screens;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.world.InteractionHand;
@@ -176,7 +177,8 @@ public final class PhoneHud {
             syncSize(mc);
         }
 
-        boolean isScreen = mc.screen == phone;
+        var shown = Screens.current(mc);
+        boolean isScreen = shown == phone;
         if (!isScreen) phone.tick();
 
         // 全屏那副面孔正开着：人已经在正经操作手机了，Alt 在这儿没有意义

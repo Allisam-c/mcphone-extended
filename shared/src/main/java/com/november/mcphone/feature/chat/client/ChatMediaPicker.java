@@ -1,5 +1,6 @@
 package com.november.mcphone.feature.chat.client;
 
+import com.mojang.blaze3d.platform.InputConstants;
 import com.november.mcphone.core.client.FontPalette;
 import com.november.mcphone.core.client.GuiUtil;
 import com.november.mcphone.core.client.ImageFolder;
@@ -205,10 +206,10 @@ public final class ChatMediaPicker {
     /** 方向键翻页，Home/End 跳首尾页——攒了几百张时只能一页页点箭头会很难受 */
     public boolean keyPressed(int keyCode) {
         switch (keyCode) {
-            case 262, 264 -> { flip(1); return true; }    // → ↓
-            case 263, 265 -> { flip(-1); return true; }   // ← ↑
-            case 268 -> { page = 0; return true; }        // Home
-            case 269 -> { page = lastPage(); return true; }
+            case InputConstants.KEY_RIGHT, InputConstants.KEY_DOWN -> { flip(1); return true; }
+            case InputConstants.KEY_LEFT, InputConstants.KEY_UP -> { flip(-1); return true; }
+            case InputConstants.KEY_HOME -> { page = 0; return true; }
+            case InputConstants.KEY_END -> { page = lastPage(); return true; }
             default -> { return false; }
         }
     }

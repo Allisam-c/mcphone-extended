@@ -4,8 +4,8 @@ import com.november.mcphone.platform.ResourceIds;
 
 import com.mojang.blaze3d.platform.NativeImage;
 import com.november.mcphone.MCphone;
+import com.november.mcphone.platform.client.Textures;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.renderer.texture.DynamicTexture;
 import net.minecraft.resources.ResourceLocation;
 
 import java.awt.AlphaComposite;
@@ -220,7 +220,8 @@ public final class ImageCodec {
         // 尺寸要在 register 之前取：DynamicTexture 接管 NativeImage 后不该再碰它
         int width = image.getWidth();
         int height = image.getHeight();
-        Minecraft.getInstance().getTextureManager().register(location, new DynamicTexture(image));
+        Minecraft.getInstance().getTextureManager().register(location,
+                Textures.dynamicTexture(() -> location.toString(), image));
         return new Texture(location, width, height);
     }
 
@@ -252,7 +253,7 @@ public final class ImageCodec {
                 int r = (argb >> 16) & 0xFF;
                 int g = (argb >> 8) & 0xFF;
                 int b = argb & 0xFF;
-                out.setPixelRGBA(x, y, (a << 24) | (b << 16) | (g << 8) | r);
+                Textures.setPixelABGR(out, x, y, (a << 24) | (b << 16) | (g << 8) | r);
             }
         }
         return out;

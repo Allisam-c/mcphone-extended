@@ -1,6 +1,5 @@
 import org.gradle.api.file.ConfigurableFileCollection
 import org.gradle.api.file.DirectoryProperty
-import org.gradle.api.provider.SetProperty
 import org.gradle.api.provider.MapProperty
 import org.gradle.api.tasks.InputFiles
 import org.gradle.api.tasks.Input
@@ -15,7 +14,6 @@ abstract class BindMinecraftApiNames extends DefaultTask {
     abstract ConfigurableFileCollection getOriginalSources()
     @Input abstract MapProperty<String, String> getQualifiedNames()
     @Input abstract MapProperty<String, String> getNames()
-    @Input abstract SetProperty<String> getNativeSources()
     @OutputDirectory abstract DirectoryProperty getBoundSources()
 
     @TaskAction
@@ -43,8 +41,7 @@ abstract class BindMinecraftApiNames extends DefaultTask {
                 throw new GradleException("编译绑定出现越界或重复类型：${source}")
             }
             String transformed = original
-            if (!packageName.startsWith('com.november.mcphone.platform.client.port')
-                    && !nativeSources.get().contains(packageName + "." + source.name)) {
+            if (!packageName.startsWith('com.november.mcphone.platform.client.port')) {
                 def result = new StringBuilder()
                 def matcher = protectedText.matcher(original)
                 int position = 0
@@ -71,30 +68,28 @@ abstract class BindMinecraftApiNames extends DefaultTask {
     }
 }
 
-def bindingsFile = layout.projectDirectory.file('../../versions/' + (project.findProperty('mcphoneApiBindings') ?: '26.1-api-names.json'))
+def bindMainApiNames = !ext.has('mcphoneBindMainApiNames') || ext.mcphoneBindMainApiNames
+def bindingsPath = ext.find('mcphoneApiBindingsFile') ?: '../../versions/26.1-api-names.json'
+def bindingsFile = layout.projectDirectory.file(bindingsPath.toString())
 def bindings = new groovy.json.JsonSlurper().parseText(providers.fileContents(bindingsFile).asText.get())
-def overrides = (bindings.overrides ?: []) + (bindings.loaderOverrides?.get(mcphoneTarget.loader) ?: [])
-def overrideRoots = [file('src/main/java').canonicalFile]
-if (project.hasProperty('mcphoneVersionSources')) {
-    overrideRoots.add(file(project.mcphoneVersionSources).canonicalFile)
-}
-def originalRoots = sourceSets.main.java.srcDirs.collect { root ->
-    fileTree(root) {
-        include '**/*.java'
-        if (!overrideRoots.contains(root.canonicalFile)) exclude(overrides)
+if (bindMainApiNames) {
+    def originalRoots = sourceSets.main.java.srcDirs.collect { root ->
+        fileTree(root) {
+            include '**/*.java'
+            if (root.canonicalFile != file('src/main/java').canonicalFile) exclude(bindings.overrides ?: [])
+        }
     }
+    (bindings.overrides ?: []).each { relative ->
+        if (!file("src/main/java/${relative}").isFile()) throw new GradleException("版本覆盖缺少实现：${relative}")
+    }
+    def boundMain = tasks.register('bindMinecraftApiNames', BindMinecraftApiNames) {
+        originalSources.from(originalRoots)
+        qualifiedNames.set(bindings.qualified as Map<String, String>)
+        names.set(bindings.names as Map<String, String>)
+        boundSources.set(layout.buildDirectory.dir('generated/sources/mcphone-api-bindings/main'))
+    }
+    sourceSets.main.java.setSrcDirs([boundMain])
 }
-overrides.each { relative ->
-    if (!overrideRoots.any { new File(it, relative).isFile() }) throw new GradleException("版本覆盖缺少实现：${relative}")
-}
-def boundMain = tasks.register('bindMinecraftApiNames', BindMinecraftApiNames) {
-    originalSources.from(originalRoots)
-    qualifiedNames.set(bindings.qualified as Map<String, String>)
-    names.set(bindings.names as Map<String, String>)
-    nativeSources.set((bindings.nativeSources ?: []) as Set<String>)
-    boundSources.set(layout.buildDirectory.dir('generated/sources/mcphone-api-bindings/main'))
-}
-sourceSets.main.java.setSrcDirs([boundMain])
 
 // 断言仍会正常编译、注册和执行；绑定只处理同样的原版改名，不排除任何测试。
 def assertions = tasks.named('compileAssertTests', JavaCompile)
@@ -103,7 +98,6 @@ def boundTests = tasks.register('bindAssertionApiNames', BindMinecraftApiNames) 
     originalSources.from(originalTests)
     qualifiedNames.set(bindings.qualified as Map<String, String>)
     names.set(bindings.names as Map<String, String>)
-    nativeSources.set((bindings.nativeSources ?: []) as Set<String>)
     boundSources.set(layout.buildDirectory.dir('generated/sources/mcphone-api-bindings/assertions'))
 }
 assertions.configure { source = files(boundTests) }

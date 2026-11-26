@@ -1,6 +1,7 @@
 package com.november.mcphone.feature.chat.client.contextmenu;
 
 import com.november.mcphone.core.client.PhoneSkin;
+import com.november.mcphone.platform.client.Transforms;
 import net.minecraft.client.gui.GuiGraphics;
 
 /** 白色透明图标随菜单颜色着色；缺图时以小型几何轮廓兜底。 */
@@ -16,17 +17,16 @@ final class ChatContextMenuIcon {
             case ADD_CONTACT -> PhoneSkin.Element.CHAT_ADD_CONTACT;
             case FAVORITE -> PhoneSkin.Element.CHAT_FAVORITE;
         };
-        g.pose().pushPose();
+        Transforms.push(g);
         try {
             // 96px 源图的可见轮廓中心：复制向右 1/6、粘贴向左 1/6 逻辑像素，删除居中。
             float correction = switch(icon) { case COPY -> 1f/6f; case PASTE -> -1f/6f; default -> 0; };
-            g.pose().translate(x+correction,centerY-ChatContextMenuLayout.ICON_SIZE/2f,0);
-            g.setColor(((color>>>16)&255)/255f,((color>>>8)&255)/255f,(color&255)/255f,((color>>>24)&255)/255f);
-            boolean drawn;
-            try { drawn = element != null && PhoneSkin.draw(g,element,0,0,ChatContextMenuLayout.ICON_SIZE,ChatContextMenuLayout.ICON_SIZE); }
-            finally { g.setColor(1,1,1,1); }
+            Transforms.translate(g,x+correction,centerY-ChatContextMenuLayout.ICON_SIZE/2f);
+            boolean drawn = element != null
+                    && PhoneSkin.draw(g,element,0,0,ChatContextMenuLayout.ICON_SIZE,
+                            ChatContextMenuLayout.ICON_SIZE,color);
             if (drawn) return;
-            g.pose().scale(ChatContextMenuLayout.ICON_SIZE/24f,ChatContextMenuLayout.ICON_SIZE/24f,1);
+            Transforms.scale(g,ChatContextMenuLayout.ICON_SIZE/24f,ChatContextMenuLayout.ICON_SIZE/24f);
             switch(icon) {
                 case REPLY -> { /* 引用只使用已记录的矢量素材，不手画缺图替代。 */ }
                 case FAVORITE -> { outline(g,6,3,18,21,color); g.fill(9,15,15,17,color); }
@@ -36,7 +36,7 @@ final class ChatContextMenuIcon {
                 case CREATE_GROUP -> { outline(g,3,3,21,18,color); g.fill(14,18,17,21,color); plus(g,12,10,color); }
                 case ADD_CONTACT -> { outline(g,6,3,13,10,color); outline(g,3,14,13,21,color); plus(g,18,18,color); }
             }
-        } finally { g.pose().popPose(); }
+        } finally { Transforms.pop(g); }
     }
     private static void outline(GuiGraphics g,int x1,int y1,int x2,int y2,int color) {
         g.fill(x1,y1,x2,y1+2,color); g.fill(x1,y2-2,x2,y2,color);

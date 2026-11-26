@@ -52,4 +52,10 @@ public abstract class PhoneScreenBase extends Screen {
     public static boolean hasControlDown() { return PhoneInputs.control(); }
     public static boolean hasShiftDown() { return PhoneInputs.shift(); }
     public static boolean hasAltDown() { return PhoneInputs.alt(); }
+
+    /** 26.1 的鼠标编号仍是 GLFW 的 0..4，对外编号原样返回。 */
+    public static int pageButton(int nativeButton) { return nativeButton; }
+
+    /** 与 {@link #pageButton(int)} 互为反向；26.1 上也是恒等。 */
+    public static int nativeButton(int pageButton) { return pageButton; }
 }

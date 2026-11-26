@@ -237,6 +237,11 @@ def boundary = tasks.register('verifyPrivateEngineBoundary', VerifyPrivateEngine
     classes.from(sourceSets.main.output.classesDirs)
 }
 def releaseTaskName = plugins.hasPlugin('fabric-loom') ? 'remapJar' : plugins.hasPlugin('net.minecraftforge.gradle') ? 'jarJar' : 'jar'
+// Loom 1.19 no longer creates remapJar for the unobfuscated 26.x toolchain.
+// The regular jar is already the distributable artifact there.
+if (!tasks.names.contains(releaseTaskName)) {
+    releaseTaskName = 'jar'
+}
 def packaged = tasks.register('verifyPrivateEnginePackage', VerifyPrivateEnginePackage) {
     group = 'verification'
     dependsOn tasks.named(releaseTaskName), identity, boundary
