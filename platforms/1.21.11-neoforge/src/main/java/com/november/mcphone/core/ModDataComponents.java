@@ -52,7 +52,8 @@ public final class ModDataComponents {
             COMPONENTS.register("screen_on",
                     () -> DataComponentType.<Boolean>builder()
                             .networkSynchronized(ByteBufCodecs.BOOL)
-                            .build());
+                            .persistent(Codec.BOOL)
+                            .build()));
 
     public static final DeferredHolder<DataComponentType<?>, DataComponentType<String>> DEVICE_NAME =
             COMPONENTS.register("device_name",
