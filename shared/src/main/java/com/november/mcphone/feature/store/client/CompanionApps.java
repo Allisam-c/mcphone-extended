@@ -66,12 +66,13 @@ public final class CompanionApps {
             if (required.isEmpty()) required = PhoneScreenRegistry.companionModsOf(app);
             if (required.isEmpty()) continue;
 
-            boolean satisfied = true;
+            // 满足与否问 App 自己：客户端装前置的走默认（ModPresence），
+            // NeoEssentials 这种服务器端联动会覆写成"查服务器命令树"
+            boolean satisfied = app.companionModsSatisfied();
             StringBuilder names = new StringBuilder();
             for (RequiredMod mod : required) {
                 if (!names.isEmpty()) names.append("、");
                 names.append(mod.displayName());
-                if (!ModPresence.isLoaded(mod.modId())) satisfied = false;
             }
 
             // 已经可用、却不是每个都装齐的，不画。
