@@ -224,7 +224,7 @@ Minecraft 1.20.1，在其之前，那一侧只能使用能力。`getCapability(.
 
 <!-- 下面这段由 ./gradlew updateSeamsDoc 生成，别手改：1.21.1-neoforge -->
 
-#### 共用代码引用了的（50）
+#### 共用代码引用了的（48）
 
 **新平台必须提供同名类型**，否则 shared/ 与共享层编不过。全限定名是硬约束；方法体是抄现成的一份还是自己写，看那个文件。
 
@@ -257,8 +257,6 @@ Minecraft 1.20.1，在其之前，那一侧只能使用能力。`getCapability(.
 - `platform.PlayerAbilities`
 - `platform.PlayerAccess`
 - `platform.PlayerEffects`
-- `platform.Slots`
-- `platform.StackCodecs`
 - `platform.client.CameraGui`
 - `platform.client.ClientMessages`
 - `platform.client.DiscSongs`
@@ -279,7 +277,7 @@ Minecraft 1.20.1，在其之前，那一侧只能使用能力。`getCapability(.
 - `platform.client.Transforms`
 - `platform.client.VanillaAudio`
 
-#### 平台内部的（33）
+#### 平台内部的（31）
 
 只在这个平台自己的代码里用到。新平台不必提供同名类型。
 
@@ -295,8 +293,6 @@ Minecraft 1.20.1，在其之前，那一侧只能使用能力。`getCapability(.
 - `feature.chat.net.ChatNetworking`　—— 加载器导入
 - `feature.notes.net.NotesNetworking`　—— 加载器导入
 - `feature.store.net.StoreNetworking`　—— 加载器导入
-- `feature.terminal.integration.ae2.Ae2wtlibSupport`
-- `feature.terminal.integration.ae2.TerminalSlotLocator`
 - `feature.terminal.net.TerminalNetworking`　—— 加载器导入
 - `platform.CommandPermissions`
 - `platform.Nbt`
@@ -399,7 +395,7 @@ Minecraft 1.20.1，在其之前，那一侧只能使用能力。`getCapability(.
 
 <!-- 下面这段由 ./gradlew updateSeamsDoc 生成，别手改：1.21.1-fabric -->
 
-#### 共用代码引用了的（48）
+#### 共用代码引用了的（46）
 
 **新平台必须提供同名类型**，否则 shared/ 与共享层编不过。全限定名是硬约束；方法体是抄现成的一份还是自己写，看那个文件。
 
@@ -431,8 +427,6 @@ Minecraft 1.20.1，在其之前，那一侧只能使用能力。`getCapability(.
 - `platform.PlayerAbilities`
 - `platform.PlayerAccess`
 - `platform.PlayerEffects`
-- `platform.Slots`
-- `platform.StackCodecs`
 - `platform.client.CameraGui`
 - `platform.client.ClientMessages`
 - `platform.client.DiscSongs`
@@ -452,7 +446,7 @@ Minecraft 1.20.1，在其之前，那一侧只能使用能力。`getCapability(.
 - `platform.client.Transforms`
 - `platform.client.VanillaAudio`
 
-#### 平台内部的（38）
+#### 平台内部的（36）
 
 只在这个平台自己的代码里用到。新平台不必提供同名类型。
 
@@ -473,8 +467,6 @@ Minecraft 1.20.1，在其之前，那一侧只能使用能力。`getCapability(.
 - `feature.chat.profile.net.ProfileNetworking`　—— 加载器导入
 - `feature.notes.net.NotesNetworking`
 - `feature.store.net.StoreNetworking`
-- `feature.terminal.integration.ae2.Ae2wtlibSupport`
-- `feature.terminal.integration.ae2.TerminalSlotLocator`
 - `feature.terminal.integration.refinedstorage.RefinedStorageIntegration`
 - `feature.terminal.net.TerminalNetworking`
 - `platform.CommandPermissions`
@@ -547,7 +539,7 @@ Minecraft 1.20.1，在其之前，那一侧只能使用能力。`getCapability(.
 
 <!-- 下面这段由 ./gradlew updateSeamsDoc 生成，别手改：26.1.2-fabric -->
 
-#### 共用代码引用了的（48）
+#### 共用代码引用了的（46）
 
 **新平台必须提供同名类型**，否则 shared/ 与共享层编不过。全限定名是硬约束；方法体是抄现成的一份还是自己写，看那个文件。
 
@@ -579,8 +571,6 @@ Minecraft 1.20.1，在其之前，那一侧只能使用能力。`getCapability(.
 - `platform.PlayerAbilities`
 - `platform.PlayerAccess`
 - `platform.PlayerEffects`
-- `platform.Slots`
-- `platform.StackCodecs`
 - `platform.client.CameraGui`
 - `platform.client.ClientMessages`
 - `platform.client.DiscSongs`
@@ -600,7 +590,7 @@ Minecraft 1.20.1，在其之前，那一侧只能使用能力。`getCapability(.
 - `platform.client.Transforms`
 - `platform.client.VanillaAudio`
 
-#### 平台内部的（42）
+#### 平台内部的（41）
 
 只在这个平台自己的代码里用到。新平台不必提供同名类型。
 
@@ -611,7 +601,6 @@ Minecraft 1.20.1，在其之前，那一侧只能使用能力。`getCapability(.
 - `core.ModItems`
 - `core.client.MCphoneKeyBindings`　—— 加载器导入
 - `core.net.RequestThrottle`
-- `core.net.SyncPhoneTerminalPacket`　—— 1.20.5+ 原版
 - `core.net.SyncServerConfigPacket`　—— 1.20.5+ 原版
 - `core.script.net.ScriptNetworking`
 - `feature.camera.client.CameraHandler`
@@ -873,7 +862,7 @@ Minecraft 1.20.1，在其之前，那一侧只能使用能力。`getCapability(.
 
 <!-- 下面这段由 ./gradlew updateSeamsDoc 生成，别手改：26.1.2-neoforge -->
 
-#### 共用代码引用了的（49）
+#### 共用代码引用了的（47）
 
 **新平台必须提供同名类型**，否则 shared/ 与共享层编不过。全限定名是硬约束；方法体是抄现成的一份还是自己写，看那个文件。
 
@@ -905,8 +894,6 @@ Minecraft 1.20.1，在其之前，那一侧只能使用能力。`getCapability(.
 - `platform.PlayerAbilities`
 - `platform.PlayerAccess`
 - `platform.PlayerEffects`
-- `platform.Slots`
-- `platform.StackCodecs`
 - `platform.client.CameraGui`
 - `platform.client.ClientMessages`
 - `platform.client.DiscSongs`
@@ -927,7 +914,7 @@ Minecraft 1.20.1，在其之前，那一侧只能使用能力。`getCapability(.
 - `platform.client.Transforms`
 - `platform.client.VanillaAudio`
 
-#### 平台内部的（36）
+#### 平台内部的（34）
 
 只在这个平台自己的代码里用到。新平台不必提供同名类型。
 
@@ -943,8 +930,6 @@ Minecraft 1.20.1，在其之前，那一侧只能使用能力。`getCapability(.
 - `feature.chat.net.ChatNetworking`　—— 加载器导入
 - `feature.notes.net.NotesNetworking`　—— 加载器导入
 - `feature.store.net.StoreNetworking`　—— 加载器导入
-- `feature.terminal.integration.ae2.Ae2wtlibSupport`
-- `feature.terminal.integration.ae2.TerminalSlotLocator`
 - `feature.terminal.net.TerminalNetworking`　—— 加载器导入
 - `platform.PacketIds`
 - `platform.PhonePayloadTypes`　—— 1.20.5+ 原版
@@ -976,7 +961,7 @@ Minecraft 1.20.1，在其之前，那一侧只能使用能力。`getCapability(.
 
 <!-- 下面这段由 ./gradlew updateSeamsDoc 生成，别手改：26.3-neoforge -->
 
-#### 共用代码引用了的（49）
+#### 共用代码引用了的（47）
 
 **新平台必须提供同名类型**，否则 shared/ 与共享层编不过。全限定名是硬约束；方法体是抄现成的一份还是自己写，看那个文件。
 
@@ -1008,8 +993,6 @@ Minecraft 1.20.1，在其之前，那一侧只能使用能力。`getCapability(.
 - `platform.PlayerAbilities`
 - `platform.PlayerAccess`
 - `platform.PlayerEffects`
-- `platform.Slots`
-- `platform.StackCodecs`
 - `platform.client.CameraGui`
 - `platform.client.ClientMessages`
 - `platform.client.DiscSongs`
@@ -1030,7 +1013,7 @@ Minecraft 1.20.1，在其之前，那一侧只能使用能力。`getCapability(.
 - `platform.client.Transforms`
 - `platform.client.VanillaAudio`
 
-#### 平台内部的（38）
+#### 平台内部的（36）
 
 只在这个平台自己的代码里用到。新平台不必提供同名类型。
 
@@ -1045,8 +1028,6 @@ Minecraft 1.20.1，在其之前，那一侧只能使用能力。`getCapability(.
 - `feature.chat.net.ChatNetworking`　—— 加载器导入
 - `feature.notes.net.NotesNetworking`　—— 加载器导入
 - `feature.store.net.StoreNetworking`　—— 加载器导入
-- `feature.terminal.integration.ae2.Ae2wtlibSupport`
-- `feature.terminal.integration.ae2.TerminalSlotLocator`
 - `feature.terminal.net.TerminalNetworking`　—— 加载器导入
 - `platform.CommandPermissions`
 - `platform.Nbt`
@@ -1081,7 +1062,7 @@ Minecraft 1.20.1，在其之前，那一侧只能使用能力。`getCapability(.
 
 <!-- 下面这段由 ./gradlew updateSeamsDoc 生成，别手改：26.3-fabric -->
 
-#### 共用代码引用了的（49）
+#### 共用代码引用了的（47）
 
 **新平台必须提供同名类型**，否则 shared/ 与共享层编不过。全限定名是硬约束；方法体是抄现成的一份还是自己写，看那个文件。
 
@@ -1114,8 +1095,6 @@ Minecraft 1.20.1，在其之前，那一侧只能使用能力。`getCapability(.
 - `platform.PlayerAbilities`
 - `platform.PlayerAccess`
 - `platform.PlayerEffects`
-- `platform.Slots`
-- `platform.StackCodecs`
 - `platform.client.CameraGui`
 - `platform.client.ClientMessages`
 - `platform.client.DiscSongs`
@@ -1135,7 +1114,7 @@ Minecraft 1.20.1，在其之前，那一侧只能使用能力。`getCapability(.
 - `platform.client.Transforms`
 - `platform.client.VanillaAudio`
 
-#### 平台内部的（43）
+#### 平台内部的（40）
 
 只在这个平台自己的代码里用到。新平台不必提供同名类型。
 
@@ -1146,7 +1125,6 @@ Minecraft 1.20.1，在其之前，那一侧只能使用能力。`getCapability(.
 - `core.ModItems`
 - `core.client.MCphoneKeyBindings`　—— 加载器导入
 - `core.net.RequestThrottle`
-- `core.net.SyncPhoneTerminalPacket`　—— 1.20.5+ 原版
 - `core.net.SyncServerConfigPacket`　—— 1.20.5+ 原版
 - `core.script.net.ScriptNetworking`
 - `feature.chat.ChatImageUploads`
@@ -1155,8 +1133,6 @@ Minecraft 1.20.1，在其之前，那一侧只能使用能力。`getCapability(.
 - `feature.chat.profile.net.ProfileNetworking`　—— 加载器导入
 - `feature.notes.net.NotesNetworking`
 - `feature.store.net.StoreNetworking`
-- `feature.terminal.integration.ae2.Ae2wtlibSupport`
-- `feature.terminal.integration.ae2.TerminalSlotLocator`
 - `feature.terminal.integration.refinedstorage.RefinedStorageIntegration`
 - `feature.terminal.net.TerminalNetworking`
 - `platform.CommandPermissions`
