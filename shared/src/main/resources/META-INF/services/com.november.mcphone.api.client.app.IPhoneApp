@@ -6,6 +6,7 @@ com.november.mcphone.feature.gallery.client.GalleryApp
 com.november.mcphone.feature.music.client.MusicApp
 com.november.mcphone.feature.enderchest.client.EnderChestApp
 com.november.mcphone.feature.notes.client.NotesApp
+com.november.mcphone.feature.homes.client.HomesApp
 com.november.mcphone.feature.waystone.client.WaystoneApp
 com.november.mcphone.feature.browser.client.BrowserApp
 com.november.mcphone.feature.clock.client.ClockApp
