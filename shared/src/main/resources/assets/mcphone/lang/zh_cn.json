@@ -580,5 +580,19 @@
   "mcphone.script.initialization.failed": "页面初始化未完成，已保留默认值。详情见客户端日志。",
   "mcphone.script.http_callback.failed": "响应处理未完成，页面数据已保留。详情见客户端日志。",
   "mcphone.script.open_url.failed": "无法打开网页，请检查系统默认浏览器。",
-  "key.category.mcphone.keys": "手机"
+  "key.category.mcphone.keys": "手机",
+  "mcphone.app.homes": "家园",
+  "mcphone.app.homes.desc": "NeoEssentials 传家：查看、传送与设置自己的家（需服务器安装 NeoEssentials）。",
+  "mcphone.homes.empty": "还没有家。点右上角的 + 输入名字，会为你执行 /sethome。",
+  "mcphone.homes.add_hint": "输入家的名字，确认后执行 /sethome <名字>",
+  "mcphone.homes.confirm": "设置",
+  "mcphone.homes.cancel": "取消",
+  "mcphone.homes.delete": "删除",
+  "mcphone.homes.tp": "回家",
+  "mcphone.homes.no_server": "这台服务器没有启用家园命令（未找到 sethome）。装了 NeoEssentials 的服务器上才会显示本应用。",
+  "mcphone.homes.limit": "家已满（上限 %s 个）。要加新的请先删一个。",
+  "mcphone.homes.name_invalid": "名字不能为空，也不能带空格。",
+  "mcphone.homes.sent_set": "已执行 /sethome（服务器有冷却与校验，以聊天栏反馈为准）",
+  "mcphone.homes.sent_tp": "已执行 /home",
+  "mcphone.homes.sent_del": "已执行 /delhome"
 }

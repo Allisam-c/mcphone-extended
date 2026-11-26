@@ -17,6 +17,7 @@ public enum PhonePaths {
     APP_DATA("mcphone/data/appdata"),
     FAVORITES("mcphone/data/chat/favorites"),
     CHANGELOG("mcphone/data/changelog"),
+    HOMES("mcphone/data/homes.json"),
     AUTHORS("config/mcphone/authors.json"),
     AUTHOR_KEYS("config/mcphone/keys"),
     AUTHOR_BACKUP("mcphone/backups/author-keys"),

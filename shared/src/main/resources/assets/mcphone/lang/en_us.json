@@ -580,5 +580,19 @@
   "mcphone.script.initialization.failed": "Page initialization failed. Default values were kept. See the client log for details.",
   "mcphone.script.http_callback.failed": "Response processing failed. Page data was kept. See the client log for details.",
   "mcphone.script.open_url.failed": "Could not open the webpage. Check your system's default browser.",
-  "key.category.mcphone.keys": "MCphone"
+  "key.category.mcphone.keys": "MCphone",
+  "mcphone.app.homes": "Homes",
+  "mcphone.app.homes.desc": "NeoEssentials homes: view, teleport to and set your homes (requires NeoEssentials on the server).",
+  "mcphone.homes.empty": "No homes yet. Tap + in the corner and enter a name to run /sethome.",
+  "mcphone.homes.add_hint": "Enter a home name. Confirming runs /sethome <name>",
+  "mcphone.homes.confirm": "Set",
+  "mcphone.homes.cancel": "Cancel",
+  "mcphone.homes.delete": "Delete",
+  "mcphone.homes.tp": "Go",
+  "mcphone.homes.no_server": "This server has no home commands (sethome not found). Install NeoEssentials on the server to use this app.",
+  "mcphone.homes.limit": "Home list is full (max %s). Delete one first.",
+  "mcphone.homes.name_invalid": "Name must not be empty or contain spaces.",
+  "mcphone.homes.sent_set": "Ran /sethome (server cooldown & validation apply, see chat)",
+  "mcphone.homes.sent_tp": "Ran /home",
+  "mcphone.homes.sent_del": "Ran /delhome"
 }
