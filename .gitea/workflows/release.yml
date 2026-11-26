@@ -1,0 +1,62 @@
+name: Build & Release
+# 打 tag（v*）时自动：构建 26.3-neoforge jar -> 建 Release -> 挂产物。
+# 需要 NAS 上挂一个 act_runner（labels 含 self-hosted），仓库设置里开启 Actions。
+# 依赖从 maven.neoforged.net / mavenCentral 下载，runner 宿主机首跑会拉几百 MB，
+# 之后走 Gradle 缓存，几分钟一版。
+
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  build:
+    runs-on: [self-hosted]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup JDK 25
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "25"
+        # 若 runner 宿主机已装 JDK 25 且 Adoptium API 不通，可删掉本步，
+        # 改在 build 前设置 JAVA_HOME 指向本机 JDK
+
+      - name: Build jar
+        run: |
+          cd platforms/26.3-neoforge
+          ./gradlew build --no-daemon
+          ls -la build/libs/
+
+      - name: Create release & upload jar
+        shell: bash
+        env:
+          GITEA_TOKEN: ${{ secrets.GITEA_TOKEN }}
+        run: |
+          set -e
+          API="$GITEA_SERVER_URL/api/v1"
+          TAG="$GITHUB_REF_NAME"
+          JAR=$(ls platforms/26.3-neoforge/build/libs/mcphone-*.jar | head -1)
+          ASSET="mcphone-26.3-neoforge-${TAG}.jar"
+
+          # 建 Release；tag 已存在（同名 Release）就复用
+          REL_ID=$(curl -sf -X POST -H "Authorization: token $GITEA_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d "{\"tag_name\":\"$TAG\",\"target_commitish\":\"main\",\"name\":\"MCphone $TAG\",\"body\":\"CI 自动构建（26.3-neoforge，Java 25）\"}" \
+            "$API/repos/$GITEA_REPOSITORY/releases" | python3 -c "import json,sys;print(json.load(sys.stdin).get('id',''))" || true)
+          if [ -z "$REL_ID" ]; then
+            REL_ID=$(curl -sf -H "Authorization: token $GITEA_TOKEN" \
+              "$API/repos/$GITEA_REPOSITORY/releases/tags/$TAG" | python3 -c "import json,sys;print(json.load(sys.stdin).get('id',''))")
+          fi
+          if [ -z "$REL_ID" ]; then echo "拿不到 Release id，终止"; exit 1; fi
+
+          # 传 jar（同名先删，保证 Release 里始终是最新构建）
+          curl -sf -X DELETE -H "Authorization: token $GITEA_TOKEN" \
+            "$API/repos/$GITEA_REPOSITORY/releases/$REL_ID/assets?name=$ASSET" || true
+          curl -sf -X POST -H "Authorization: token $GITEA_TOKEN" \
+            -H "Content-Type: application/octet-stream" \
+            --data-binary @"$JAR" \
+            "$API/repos/$GITEA_REPOSITORY/releases/$REL_ID/assets?name=$ASSET"
+          echo "已上传 $ASSET 到 Release #$REL_ID"
