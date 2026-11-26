@@ -53,6 +53,7 @@ public final class ModDataComponents {
      */
     public static final Holder<DataComponentType<Boolean>> SCREEN_ON = Holder.of(DataComponentType.<Boolean>builder()
             .networkSynchronized(ByteBufCodecs.BOOL)
+            .persistent(Codec.BOOL)
             .build());
 
     /** 由 MCphone.onInitialize 调用 */
