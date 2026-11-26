@@ -131,6 +131,18 @@ public final class NetworkHandler {
 
     /** 两只手必须逐一更新，否则同时打开 HUD 和全屏设备时会误灭其中一台。 */
     private static void handlePhoneScreenOn(PhoneScreenOnPacket packet, ServerPlayer player) {
+        // mcphone.screenon.mode：full（默认）= 原版；no-component = 不把亮屏写进手持物
+        // 组件，别人看不到你手机亮没亮；watch = 原版 + 每个亮屏包打一行日志（现场诊断）。
+        // 属性每个包读一次（开销可忽略），改模式重启服务器生效。
+        String screenMode = System.getProperty("mcphone.screenon.mode", "full");
+        if ("no-component".equals(screenMode)) return;
+        if ("watch".equals(screenMode)) {
+            MCphone.LOGGER.info("[mcphone] 玩家 {} 的亮屏包: 主手={}, 副手={}",
+                    player.getName().getString(),
+                    packet.isLit(InteractionHand.MAIN_HAND),
+                    packet.isLit(InteractionHand.OFF_HAND));
+        }
+
         // SCREEN_STATE is absolute state, not an increment. It is intentionally
         // not throttled: dropping one update leaves the server-side lit bit
         // stale until reconnect.

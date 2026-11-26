@@ -1,7 +1,11 @@
 package com.november.mcphone.core.client;
 
+import com.november.mcphone.core.PhoneItem;
+import com.november.mcphone.feature.music.client.MusicController;
 import com.november.mcphone.feature.store.client.AppSourceRegistry;
 import com.november.mcphone.core.script.client.LocalScriptUpdates;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.player.LocalPlayer;
 
 /**
  * 共用代码里"每客户端 tick 要做一次"的那些事，<b>汇到这一个入口</b>。
@@ -40,6 +44,17 @@ public final class ClientTicks {
      * Forge 挂 {@code TickEvent.ClientTickEvent} 并判 {@code phase == END}）。
      */
     public static void tick() {
+        // 手机不在身上（含饰品槽）就停掉本地音乐。DiscService 的服务端广播会自行
+        // 停止，这里停的是玩家自己听到的那一路 —— 不停的话手机进箱子音乐放个没完。
+        // 保守策略：玩家没进世界就不动；只在确实有东西在放时才停。
+        if (Boolean.parseBoolean(System.getProperty("mcphone.disc.stopwhennotcarried", "true"))) {
+            LocalPlayer player = Minecraft.getInstance().player;
+            if (player != null && MusicController.current() != null
+                    && !PhoneItem.isCarriedBy(player)) {
+                MusicController.stop();
+            }
+        }
+
         // 「这会儿开着的是哪一台设备」每 tick 算一次，变了才发包
         PhoneScreenOnSync.tick();
 

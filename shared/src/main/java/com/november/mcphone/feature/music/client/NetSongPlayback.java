@@ -38,6 +38,13 @@ public final class NetSongPlayback {
             return;
         }
 
+        // mcphone.music.audience=false（默认）：网络歌只由播放者本人下载解码，
+        // 听众端不各自拉流（带宽与解码都在一个人身上）。true = 原版行为，范围内各下各的。
+        if (!Boolean.parseBoolean(System.getProperty("mcphone.music.audience", "false"))
+                && source != mc.player) {
+            return;
+        }
+
         NetMusicPlayback.play(song, url -> {
             NetSongSound sound = new NetSongSound(source, url, song.seconds());
 
