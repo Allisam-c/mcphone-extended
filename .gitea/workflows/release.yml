@@ -63,7 +63,8 @@ jobs:
           fi
           echo "JAVA_HOME=/opt/hostedtoolcache/jdk25" >> $GITHUB_ENV
           echo "/opt/hostedtoolcache/jdk25/bin" >> $GITHUB_PATH
-          java -version
+          # $GITHUB_PATH 只对后续步骤生效，本脚本内用绝对路径验证
+          /opt/hostedtoolcache/jdk25/bin/java -version
 
       - name: Build jar
         shell: bash
