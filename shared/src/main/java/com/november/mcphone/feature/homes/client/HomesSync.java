@@ -83,31 +83,44 @@ public final class HomesSync {
      */
     public static void requestDelete(String name) {
         send("delhome " + name);
-        // 确认由玩家点聊天栏里的 [Confirm]；这里排两次重同步，点完清单自动跟上
-        schedule(4000, HomesSync::startSync);
+        homes.remove(name); // 乐观移除；玩家没点 [Confirm] 的话，15 秒后的重同步会把它带回来
         schedule(15000, HomesSync::startSync);
     }
 
-    /** 新建家：/sethome 有冷却，2 秒后重同步拿真实结果 */
+    /**
+     * 新建家：乐观更新 —— 名字立刻进清单（零延迟），服务器若拒绝
+     * （重名/冷却），聊天栏会刷拒绝原因，下次同步自动纠正。
+     */
     public static void requestSet(String name) {
         send("sethome " + name);
-        schedule(2000, HomesSync::startSync);
+        if (!homes.contains(name)) homes.add(name);
     }
 
-    /** 平台侧聊天事件转发进来（只在捕获窗口内解析） */
-    public static void onChat(String text) {
-        if (!syncing || text == null) return;
+    /**
+     * 平台侧聊天事件转发进来（只在捕获窗口内解析）。
+     *
+     * @return true = 这条消息是 /listhomes 的回包，调用方应把聊天事件取消掉，
+     *         不让它刷进聊天栏 —— 同步在后台拿数据，玩家眼前保持干净
+     */
+    public static boolean onChat(String text) {
+        if (!syncing || text == null) return false;
+        boolean hide = false;
         for (String line : text.split("\n")) {
             String t = line.replace("[NE]", "").trim();
             if (t.isEmpty()) continue;
             Matcher m = HOMES_COUNT.matcher(t);
             if (m.find()) {
                 limit = Integer.parseInt(m.group(2));
+                hide = true;
                 continue;
             }
             Matcher r = HOME_LINE.matcher(t);
-            if (r.matches()) homes.add(r.group(1));
+            if (r.matches()) {
+                if (!homes.contains(r.group(1))) homes.add(r.group(1));
+                hide = true;
+            }
         }
+        return hide;
     }
 
     /** 捕获窗口到期就收工；到期的延迟动作执行。页面每 tick 调一次 */

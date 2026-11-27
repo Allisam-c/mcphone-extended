@@ -81,8 +81,8 @@ public class MCphoneClient {
         // 这里把聊天文本转发给它的解析器（只在捕获窗口内生效，平时零开销）
         NeoForge.EVENT_BUS.addListener(
                 (net.neoforged.neoforge.client.event.ClientChatReceivedEvent event) ->
-                        com.november.mcphone.feature.homes.client.HomesSync.onChat(
-                                event.getMessage().getString()));
+                        event.setCanceled(com.november.mcphone.feature.homes.client.HomesSync.onChat(
+                                event.getMessage().getString())));
 
         ClientTicks.onEndTick(PhoneKeyHandler::tick);
 
