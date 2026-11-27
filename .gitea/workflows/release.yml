@@ -73,6 +73,14 @@ jobs:
           if [ -d /opt/hostedtoolcache/gradle-home/caches ]; then
             export GRADLE_USER_HOME=/opt/hostedtoolcache/gradle-home
             echo "使用 toolcache 里的 Gradle 缓存"
+            # 播种拷贝可能落下写了一半的 transform 工作区（缺元数据 → Gradle 拒绝）。
+            # 一次性清掉让它重新派生（本地派生，无需联网），之后保留缓存
+            MARK="$GRADLE_USER_HOME/.transforms-clean"
+            if [ ! -f "$MARK" ]; then
+              rm -rf "$GRADLE_USER_HOME/caches/9.2.1/transforms"
+              touch "$MARK"
+              echo "已清理不完整的 transforms 缓存（一次性）"
+            fi
           fi
           cd workspace/platforms/26.3-neoforge
           ./gradlew build --offline --no-daemon || ./gradlew build --no-daemon
