@@ -1,8 +1,8 @@
 package com.november.mcphone.feature.homes.client;
 
 import com.november.mcphone.api.client.ui.IPhonePage;
+import com.november.mcphone.api.client.ui.PhoneCanvas;
 import com.november.mcphone.core.client.FontPalette;
-import com.november.mcphone.core.client.GuiUtil;
 import com.november.mcphone.core.client.PhoneTheme;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
@@ -13,30 +13,26 @@ import net.minecraft.network.chat.Component;
 import java.util.List;
 
 /**
- * 家园页：家名清单 + 右上角「+」新增 + 每行「删除」。
+ * 家园页：数据由 {@link HomesSync} 从服务器实时同步（/listhomes 解析），
+ * 动作全部走聊天命令，结果以服务器聊天栏反馈为准。
  *
- * 数据来自 {@link HomesStore}（客户端账本），动作全部走聊天命令：
- *   点家名   -> /home <名字>
- *   点删除   -> /delhome <名字>
- *   确认新增 -> /sethome <名字>
- *
- * 服务器（NeoEssentials）才是权威：冷却、上限、名字校验都以它的反馈为准，
- * 手机这边只负责把命令敲出去，并把「我发过的」记进清单。
+ * 三个交互约定（实测迭代出来的）：
+ * - 光标始终闪烁的竖线，空态也显示 —— 让"这里能输入"一眼可见；
+ * - 退格三重保险（键值 / 双扫描码 / 字符事件），见 keyPressed 与 charTyped；
+ * - 不做"已发送"之类的成功提示 —— 命令结果服务器会刷在聊天栏。
  */
 public final class HomesPage implements IPhonePage {
 
     private static final int PAD = 4;
     private static final long TOAST_MS = 2500L;
-    private static final int MAX_INPUT = HomesStore.MAX_NAME_LENGTH;
+    private static final int MAX_INPUT = HomesSync.MAX_NAME_LENGTH;
 
-    private final List<String> homes = new java.util.ArrayList<>();
     private boolean addMode;
     private final StringBuilder input = new StringBuilder();
     private String toast = "";
     private long toastUntilMs;
     private int scrollOffset;
 
-    /** 命中区域（render 时记录，click 时消费）。行：[x,y,w,h] + 删除键 [x,y,w,h] */
     private int rowHovered = -1;
     private int rowDelHovered = -1;
     private final java.util.List<int[]> rowRects = new java.util.ArrayList<>();
@@ -44,18 +40,15 @@ public final class HomesPage implements IPhonePage {
     private boolean addHovered;
     private boolean confirmHovered;
     private boolean cancelHovered;
-    private boolean bspHovered;
     private int confirmX, confirmY, confirmW, cancelX, cancelY, cancelW;
-    private int bspX, bspY, bspW = 12;
 
     @Override
     public void onOpen() {
-        homes.clear();
-        homes.addAll(HomesStore.load());
         addMode = false;
         input.setLength(0);
         toast = "";
         scrollOffset = 0;
+        HomesSync.startSync();
     }
 
     @Override
@@ -64,6 +57,11 @@ public final class HomesPage implements IPhonePage {
         delRects.clear();
         rowHovered = -1;
         rowDelHovered = -1;
+    }
+
+    @Override
+    public void tick() {
+        HomesSync.tick(); // 捕获窗口收口 + 自动 /confirm、延迟重同步
     }
 
     /** 服务器有没有启用家园命令：登录时服务器会把命令树同步给客户端，直接查 */
@@ -89,40 +87,35 @@ public final class HomesPage implements IPhonePage {
 
     private void confirmAdd() {
         String name = input.toString().trim();
-        if (!HomesStore.isValidName(name)) {
+        if (!HomesSync.isValidName(name)) {
             showToast("mcphone.homes.name_invalid");
             return;
         }
-        if (homes.size() >= HomesStore.MAX_HOMES) {
-            showToast("mcphone.homes.limit", HomesStore.MAX_HOMES);
-            return;
-        }
-        if (homes.contains(name)) {
+        if (homes().contains(name)) {
             showToast("mcphone.homes.name_invalid");
             return;
         }
-        sendChatCommand("sethome " + name);
-        homes.add(name);
-        HomesStore.save(homes);
         addMode = false;
         input.setLength(0);
+        HomesSync.requestSet(name); // /sethome + 2 秒后重同步
     }
 
     private void deleteHome(int idx) {
+        List<String> homes = homes();
         if (idx < 0 || idx >= homes.size()) return;
-        String name = homes.get(idx);
-        sendChatCommand("delhome " + name);
-        homes.remove(idx);
-        HomesStore.save(homes);
+        HomesSync.requestDelete(homes.get(idx)); // /delhome + 自动 /confirm + 重同步
     }
 
     private void teleportHome(int idx) {
+        List<String> homes = homes();
         if (idx < 0 || idx >= homes.size()) return;
         sendChatCommand("home " + homes.get(idx));
     }
 
+    private List<String> homes() { return HomesSync.homes(); }
+
     @Override
-    public void render(com.november.mcphone.api.client.ui.PhoneCanvas c) {
+    public void render(PhoneCanvas c) {
         GuiGraphics g = c.graphics();
         Font font = c.font();
         int x = c.x();
@@ -137,8 +130,7 @@ public final class HomesPage implements IPhonePage {
         rowHovered = -1;
         rowDelHovered = -1;
 
-        // 服务器没启用：整页提示。文案按 \n 手动分行 —— font.split 对中英混排
-        // 的断行会在行尾留大段空白，很难看，短句一行一行画反而整齐
+        // 服务器没启用：整页提示
         if (!serverHasHomes()) {
             int ty = y + 10;
             for (String line : Component.translatable("mcphone.homes.no_server").getString().split("\n")) {
@@ -148,9 +140,13 @@ public final class HomesPage implements IPhonePage {
             return;
         }
 
-        // 标题行 + 「+」
-        g.drawString(font, Component.translatable("mcphone.app.homes").getString(),
-                x + PAD, y + 2, FontPalette.title(), true);
+        // 标题行（带服务器同步来的已用/上限）+ 「+」
+        String title = Component.translatable("mcphone.app.homes").getString();
+        int limit = HomesSync.limit();
+        if (!addMode && limit > 0) {
+            title += " " + homes().size() + "/" + limit;
+        }
+        g.drawString(font, title, x + PAD, y + 2, FontPalette.title(), true);
         if (!addMode) {
             String plus = "+";
             int plusW = font.width(plus);
@@ -163,27 +159,30 @@ public final class HomesPage implements IPhonePage {
         g.fill(x + PAD, dividerY, x + w - PAD, dividerY + 1, PhoneTheme.COLOR_DIVIDER);
         int ry = dividerY + 4;
 
-        if (addMode) {
+        if (HomesSync.isSyncing() && homes().isEmpty()) {
+            g.drawString(font, Component.translatable("mcphone.homes.syncing").getString(),
+                    x + PAD, ry, FontPalette.dim(), false);
+            ry += font.lineHeight + 4;
+        } else if (addMode) {
             ry = renderAddRow(c, font, x, ry, w, mouseX, mouseY);
-        } else if (homes.isEmpty()) {
+        } else if (homes().isEmpty()) {
             int ty = ry;
-            for (var line : font.split(Component.translatable("mcphone.homes.empty"), w - PAD * 2)) {
+            for (String line : Component.translatable("mcphone.homes.empty").getString().split("\n")) {
                 g.drawString(font, line, x + PAD, ty, FontPalette.preview(), false);
-                ty += font.lineHeight + 1;
+                ty += font.lineHeight + 3;
             }
             ry = ty + 4;
         } else {
-            // 清单行（带滚动夹紧）
             int rowH = font.lineHeight + 6;
             int avail = bottom - ry - (toast.isEmpty() ? 0 : font.lineHeight + 2);
             int visible = Math.max(1, avail / rowH);
-            int maxOffset = Math.max(0, homes.size() - visible);
+            int maxOffset = Math.max(0, homes().size() - visible);
             if (scrollOffset > maxOffset) scrollOffset = maxOffset;
 
             String delLabel = Component.translatable("mcphone.homes.delete").getString();
-            for (int i = scrollOffset; i < homes.size(); i++) {
+            for (int i = scrollOffset; i < homes().size(); i++) {
                 if (ry + rowH > bottom) break;
-                String name = homes.get(i);
+                String name = homes().get(i);
                 boolean hovered = mouseX >= x + PAD && mouseX <= x + w - PAD
                         && mouseY >= ry && mouseY < ry + rowH;
                 if (hovered) {
@@ -208,7 +207,6 @@ public final class HomesPage implements IPhonePage {
             }
         }
 
-        // 提示条
         if (!toast.isEmpty() && System.currentTimeMillis() <= toastUntilMs) {
             int tw = font.width(toast);
             g.drawString(font, toast, x + Math.max(PAD, (w - tw) / 2), bottom - font.lineHeight,
@@ -216,43 +214,28 @@ public final class HomesPage implements IPhonePage {
         }
     }
 
-    private int renderAddRow(com.november.mcphone.api.client.ui.PhoneCanvas c,
-                             Font font, int x, int y, int w, int mouseX, int mouseY) {
+    private int renderAddRow(PhoneCanvas c, Font font, int x, int y, int w, int mouseX, int mouseY) {
         GuiGraphics g = c.graphics();
-        // 输入框：占位提示 + 已输入内容 + 光标闪烁
+        boolean blink = System.currentTimeMillis() / 500 % 2 == 0;
         int boxH = font.lineHeight + 8;
         g.fill(x + PAD, y, x + w - PAD, y + boxH, 0x66000000);
         g.renderOutline(x + PAD, y, x + w - PAD, y + boxH, FontPalette.dim());
 
-        boolean blink = System.currentTimeMillis() / 500 % 2 == 0;
         String text = input.toString();
         int tx = x + PAD + 3;
         if (text.isEmpty()) {
             g.drawString(font, Component.translatable("mcphone.homes.add_hint").getString(),
                     tx, y + 4, FontPalette.dim(), false);
         } else {
-            g.drawString(font, GuiUtil.truncate(font, text, w - PAD * 2 - bspW - 8),
-                    tx, y + 4, FontPalette.title(), false);
+            g.drawString(font, text, tx, y + 4, FontPalette.title(), false);
         }
-        // 闪烁竖线光标：空态在占位文字前，非空在文字末尾 —— 让"这里能输入"一眼可见
+        // 闪烁竖线光标：空态在占位文字前，非空在文字末尾
         if (blink) {
-            int cx = text.isEmpty() ? tx : tx + Math.min(font.width(text), w - PAD * 2 - bspW - 6);
+            int cx = text.isEmpty() ? tx : tx + font.width(text);
             g.fill(cx, y + 3, cx + 1, y + 3 + font.lineHeight, FontPalette.title());
         }
-        // ⌫ 按钮：退格键万一失效时的兜底删除入口（鼠标点击路径已被实测可用）
-        String bspLabel = "⌫";
-        bspW = font.width(bspLabel) + 6;
-        bspX = x + w - PAD - bspW - 2;
-        bspY = y;
-        bspHovered = mouseX >= bspX && mouseX <= bspX + bspW
-                && mouseY >= bspY && mouseY <= bspY + boxH;
-        g.fill(bspX, bspY, bspX + bspW, bspY + boxH,
-                bspHovered ? PhoneTheme.COLOR_ROW_HOVER : 0x33000000);
-        g.drawString(font, bspLabel, bspX + 3, y + 4,
-                bspHovered ? FontPalette.danger() : FontPalette.body(), false);
         y += boxH + 4;
 
-        // 确认 / 取消
         String confirm = Component.translatable("mcphone.homes.confirm").getString();
         String cancel = Component.translatable("mcphone.homes.cancel").getString();
         confirmW = font.width(confirm) + 8;
@@ -291,14 +274,10 @@ public final class HomesPage implements IPhonePage {
                 input.setLength(0);
                 return true;
             }
-            if (bspHovered) {
-                deleteLastChar();
-                return true;
-            }
-            return false; // 输入态：点空白不算，保留输入框焦点
+            return false;
         }
 
-        if (addHovered && homes.size() < HomesStore.MAX_HOMES) {
+        if (addHovered) {
             addMode = true;
             input.setLength(0);
             return true;
@@ -317,8 +296,6 @@ public final class HomesPage implements IPhonePage {
     @Override
     public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
         if (!addMode) return false;
-        // 回车 = 确认，退格 = 删一个字符。键值走 Mojang 的 InputConstants 抽象，
-        // 26.x 从 GLFW 换成 SDL 后键编号会变，不能用 GLFW 的常量。
         if (keyCode == com.mojang.blaze3d.platform.InputConstants.KEY_RETURN
                 || keyCode == com.mojang.blaze3d.platform.InputConstants.KEY_NUMPADENTER) {
             confirmAdd();
@@ -346,9 +323,9 @@ public final class HomesPage implements IPhonePage {
             deleteLastChar();
             return true;
         }
-        if (input.length() >= MAX_INPUT) return true; // 吃掉但不加：到上限了
+        if (input.length() >= MAX_INPUT) return true;
         char ch = (char) codePoint;
-        if (Character.isWhitespace(ch)) return true; // 家名不允许空白
+        if (Character.isWhitespace(ch)) return true;
         input.append(ch);
         return true;
     }
@@ -360,7 +337,7 @@ public final class HomesPage implements IPhonePage {
             scrollOffset--;
             return true;
         }
-        if (amount < 0 && scrollOffset < homes.size() - 1) {
+        if (amount < 0 && scrollOffset < homes().size() - 1) {
             scrollOffset++;
             return true;
         }
@@ -369,6 +346,6 @@ public final class HomesPage implements IPhonePage {
 
     @Override
     public boolean capturesKeyboard() {
-        return addMode; // 输入家名时吃掉背包键（玩家打拼音必然按到 e）
+        return addMode;
     }
 }

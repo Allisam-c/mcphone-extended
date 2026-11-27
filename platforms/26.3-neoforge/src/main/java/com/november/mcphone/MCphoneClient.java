@@ -77,6 +77,13 @@ public class MCphoneClient {
 
         NeoForge.EVENT_BUS.addListener(CameraHandler::onClientTick);
 
+        // 家园 App 的服务器同步：NeoEssentials 的 /listhomes 回包走聊天栏，
+        // 这里把聊天文本转发给它的解析器（只在捕获窗口内生效，平时零开销）
+        NeoForge.EVENT_BUS.addListener(
+                (net.neoforged.neoforge.client.event.ClientChatReceivedEvent event) ->
+                        com.november.mcphone.feature.homes.client.HomesSync.onChat(
+                                event.getMessage().getString()));
+
         ClientTicks.onEndTick(PhoneKeyHandler::tick);
 
         // 手机进出副手、Alt 按下松开都在这条 tick 里判，见 PhoneHud
