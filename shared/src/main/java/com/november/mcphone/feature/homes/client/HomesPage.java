@@ -44,7 +44,9 @@ public final class HomesPage implements IPhonePage {
     private boolean addHovered;
     private boolean confirmHovered;
     private boolean cancelHovered;
+    private boolean bspHovered;
     private int confirmX, confirmY, confirmW, cancelX, cancelY, cancelW;
+    private int bspX, bspY, bspW = 12;
 
     @Override
     public void onOpen() {
@@ -81,6 +83,10 @@ public final class HomesPage implements IPhonePage {
         toastUntilMs = System.currentTimeMillis() + TOAST_MS;
     }
 
+    private void deleteLastChar() {
+        if (!input.isEmpty()) input.deleteCharAt(input.length() - 1);
+    }
+
     private void confirmAdd() {
         String name = input.toString().trim();
         if (!HomesStore.isValidName(name)) {
@@ -96,7 +102,6 @@ public final class HomesPage implements IPhonePage {
             return;
         }
         sendChatCommand("sethome " + name);
-        showToast("mcphone.homes.sent_set");
         homes.add(name);
         HomesStore.save(homes);
         addMode = false;
@@ -107,7 +112,6 @@ public final class HomesPage implements IPhonePage {
         if (idx < 0 || idx >= homes.size()) return;
         String name = homes.get(idx);
         sendChatCommand("delhome " + name);
-        showToast("mcphone.homes.sent_del");
         homes.remove(idx);
         HomesStore.save(homes);
     }
@@ -115,7 +119,6 @@ public final class HomesPage implements IPhonePage {
     private void teleportHome(int idx) {
         if (idx < 0 || idx >= homes.size()) return;
         sendChatCommand("home " + homes.get(idx));
-        showToast("mcphone.homes.sent_tp");
     }
 
     @Override
@@ -221,13 +224,32 @@ public final class HomesPage implements IPhonePage {
         g.fill(x + PAD, y, x + w - PAD, y + boxH, 0x66000000);
         g.renderOutline(x + PAD, y, x + w - PAD, y + boxH, FontPalette.dim());
 
+        boolean blink = System.currentTimeMillis() / 500 % 2 == 0;
         String text = input.toString();
-        String shown = text.isEmpty()
-                ? Component.translatable("mcphone.homes.add_hint").getString()
-                : text + (System.currentTimeMillis() / 500 % 2 == 0 ? "_" : "");
-        int color = text.isEmpty() ? FontPalette.dim() : FontPalette.title();
-        g.drawString(font, GuiUtil.truncate(font, shown, w - PAD * 2 - 4),
-                x + PAD + 3, y + 4, color, false);
+        int tx = x + PAD + 3;
+        if (text.isEmpty()) {
+            g.drawString(font, Component.translatable("mcphone.homes.add_hint").getString(),
+                    tx, y + 4, FontPalette.dim(), false);
+        } else {
+            g.drawString(font, GuiUtil.truncate(font, text, w - PAD * 2 - bspW - 8),
+                    tx, y + 4, FontPalette.title(), false);
+        }
+        // 闪烁竖线光标：空态在占位文字前，非空在文字末尾 —— 让"这里能输入"一眼可见
+        if (blink) {
+            int cx = text.isEmpty() ? tx : tx + Math.min(font.width(text), w - PAD * 2 - bspW - 6);
+            g.fill(cx, y + 3, cx + 1, y + 3 + font.lineHeight, FontPalette.title());
+        }
+        // ⌫ 按钮：退格键万一失效时的兜底删除入口（鼠标点击路径已被实测可用）
+        String bspLabel = "⌫";
+        bspW = font.width(bspLabel) + 6;
+        bspX = x + w - PAD - bspW - 2;
+        bspY = y;
+        bspHovered = mouseX >= bspX && mouseX <= bspX + bspW
+                && mouseY >= bspY && mouseY <= bspY + boxH;
+        g.fill(bspX, bspY, bspX + bspW, bspY + boxH,
+                bspHovered ? PhoneTheme.COLOR_ROW_HOVER : 0x33000000);
+        g.drawString(font, bspLabel, bspX + 3, y + 4,
+                bspHovered ? FontPalette.danger() : FontPalette.body(), false);
         y += boxH + 4;
 
         // 确认 / 取消
@@ -269,6 +291,10 @@ public final class HomesPage implements IPhonePage {
                 input.setLength(0);
                 return true;
             }
+            if (bspHovered) {
+                deleteLastChar();
+                return true;
+            }
             return false; // 输入态：点空白不算，保留输入框焦点
         }
 
@@ -298,8 +324,10 @@ public final class HomesPage implements IPhonePage {
             confirmAdd();
             return true;
         }
-        if (keyCode == com.mojang.blaze3d.platform.InputConstants.KEY_BACKSPACE && !input.isEmpty()) {
-            input.deleteCharAt(input.length() - 1);
+        // 退格：键值之外把两种扫描码（GLFW 259 / SDL 42）也认上，防键值体系切换失效
+        if (keyCode == com.mojang.blaze3d.platform.InputConstants.KEY_BACKSPACE
+                || scanCode == 259 || scanCode == 42) {
+            deleteLastChar();
             return true;
         }
         if (keyCode == com.mojang.blaze3d.platform.InputConstants.KEY_ESCAPE) {
@@ -313,6 +341,11 @@ public final class HomesPage implements IPhonePage {
     @Override
     public boolean charTyped(int codePoint, int modifiers) {
         if (!addMode) return false;
+        // 有些环境退格走字符事件（\b=8 / DEL=127），在这里也兜一手
+        if (codePoint == 8 || codePoint == 127) {
+            deleteLastChar();
+            return true;
+        }
         if (input.length() >= MAX_INPUT) return true; // 吃掉但不加：到上限了
         char ch = (char) codePoint;
         if (Character.isWhitespace(ch)) return true; // 家名不允许空白
