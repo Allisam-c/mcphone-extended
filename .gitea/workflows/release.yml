@@ -24,6 +24,16 @@ jobs:
   build:
     runs-on: [self-hosted]
     steps:
+      - name: Network diagnostics（诊断任务容器到 Gitea 的连通性）
+        shell: bash
+        run: |
+          echo "== /etc/hosts =="; cat /etc/hosts
+          echo "== getent allisam.space =="; getent hosts allisam.space || echo "解析失败"
+          echo "== 直连 allisam.space:3100 =="; curl -sI --max-time 8 "$GITEA_URL/" || echo "FAIL allisam.space"
+          echo "== 直连 192.168.1.13:3100 =="; curl -skI --max-time 8 "https://192.168.1.13:3100/" || echo "FAIL lan-ip"
+          echo "== 直连 172.17.0.1:3100 =="; curl -skI --max-time 8 "https://172.17.0.1:3100/" || echo "FAIL 172.17.0.1"
+          echo "== git clone 测试 =="; git ls-remote --heads "https://allisam.space:3100/$GITEA_REPOSITORY.git" | head -2 || echo "FAIL git"
+
       - name: Checkout（从 Gitea 本机克隆）
         shell: bash
         run: |
