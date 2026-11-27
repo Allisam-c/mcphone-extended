@@ -27,15 +27,6 @@ jobs:
   build:
     runs-on: [self-hosted]
     steps:
-      - name: Network diagnostics（诊断任务容器到 Gitea 的连通性）
-        shell: bash
-        run: |
-          echo "== /etc/hosts =="; cat /etc/hosts
-          echo "== getent allisam.space =="; getent hosts allisam.space || echo "解析失败"
-          echo "== 直连 allisam.space:3100 =="; curl -sI --max-time 8 "$GITEA_URL/" || echo "FAIL allisam.space"
-          echo "== 直连 192.168.1.13:3100 =="; curl -skI --max-time 8 "https://192.168.1.13:3100/" || echo "FAIL lan-ip"
-          echo "== 直连 172.17.0.1:3100 =="; curl -skI --max-time 8 "https://172.17.0.1:3100/" || echo "FAIL 172.17.0.1"
-          echo "== git clone 测试 =="; git ls-remote --heads "https://allisam.space:3100/AllisamWorkshop/mcphone-extended.git" | head -2 || echo "FAIL git"
 
       - name: Checkout（从 Gitea 本机克隆）
         shell: bash
@@ -50,16 +41,22 @@ jobs:
             --branch "${GITHUB_REF_NAME:-main}" workspace
           cd workspace && ls -la
 
-      - name: Prepare JDK 25（已解压则直接用，零下载）
+      - name: Prepare JDK 25（挂载优先，缺失则清华源下载）
         shell: bash
         run: |
           if [ -x /opt/jdk/bin/java ]; then
-            echo "JDK 已就绪"
-          else
-            echo "首次运行：解压 JDK"
-            [ -f /mnt/jdk.tar.gz ] || { echo "缺少 /mnt/jdk.tar.gz"; exit 1; }
+            echo "JDK 已就绪（挂载卷）"
+          elif [ -f /mnt/jdk.tar.gz ]; then
+            echo "解压挂载卷里的 JDK"
             mkdir -p /opt/jdk
             tar -xzf /mnt/jdk.tar.gz -C /opt/jdk --strip-components=1
+          else
+            echo "挂载卷里没有 JDK，从清华镜像下载"
+            MIRROR="https://mirrors.tuna.tsinghua.edu.cn/Adoptium/25/jdk/x64/linux"
+            FILE=$(curl -sfL "$MIRROR/latest.json" | python3 -c "import json,sys;d=json.load(sys.stdin);print(d['binaries'][0]['package']['link'].rsplit('/',1)[-1])")
+            echo "JDK 包: $FILE"
+            mkdir -p /opt/jdk
+            curl -sfL "$MIRROR/$FILE" | tar -xz -C /opt/jdk --strip-components=1
           fi
           echo "JAVA_HOME=/opt/jdk" >> $GITHUB_ENV
           echo "/opt/jdk/bin" >> $GITHUB_PATH
