@@ -26,10 +26,14 @@ jobs:
     steps:
       - name: Checkout（从 Gitea 本机克隆）
         shell: bash
+        env:
+          GITEA_TOKEN: ${{ secrets.GITEA_TOKEN }}   # Actions 自动注入的仓库令牌
         run: |
           git config --global --add safe.directory '*'
+          git config --global http.sslVerify false
           rm -rf workspace
-          git clone --depth 1 "$GITEA_URL/$GITEA_REPOSITORY.git" \
+          # 仓库私有，匿名 clone 被 Gitea 以 Not Found 拒绝（诊断已证实）
+          git clone --depth 1 "https://allisam:${GITEA_TOKEN}@192.168.1.13:3100/$GITEA_REPOSITORY.git" \
             --branch "$GITHUB_REF_NAME" workspace
           cd workspace && ls -la
 
