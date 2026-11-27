@@ -51,6 +51,13 @@ jobs:
       - name: Prepare JDK 25（挂载优先，缺失则清华源下载）
         shell: bash
         run: |
+          echo "=== 挂载诊断 ==="
+          ls -la /mnt/ 2>&1
+          echo "--- /opt ---"; ls -la /opt/ 2>&1
+          echo "--- /opt/jdk ---"; ls -la /opt/jdk/ 2>&1 | head -5
+          echo "--- /root/.gradle ---"; ls -la /root/.gradle/ 2>&1 | head -8
+          echo "--- findmnt ---"; grep -E "mnt|opt|gradle" /proc/mounts 2>&1 | head -5
+          echo "=== 诊断结束 ==="
           if [ -x /opt/jdk/bin/java ]; then
             echo "JDK 已就绪（挂载卷）"
           elif [ -f /mnt/jdk.tar.gz ]; then
