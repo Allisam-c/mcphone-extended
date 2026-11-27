@@ -77,6 +77,13 @@ public class MCphoneClient {
 
         NeoForge.EVENT_BUS.addListener(CameraHandler::onClientTick);
 
+        // 家园 App 的服务器同步：NeoEssentials 的 /listhomes 回包走聊天栏，
+        // 这里把聊天文本转发给它的解析器（只在捕获窗口内生效，平时零开销）
+        NeoForge.EVENT_BUS.addListener(
+                (net.neoforged.neoforge.client.event.ClientChatReceivedEvent event) ->
+                        event.setCanceled(com.november.mcphone.feature.homes.client.HomesSync.onChat(
+                                event.getMessage().getString())));
+
         ClientTicks.onEndTick(PhoneKeyHandler::tick);
 
         // 手机进出副手、Alt 按下松开都在这条 tick 里判，见 PhoneHud
@@ -90,6 +97,10 @@ public class MCphoneClient {
         // 挂在 HUD 上看书时的两个翻页键。手机成了 mc.screen 就走不动路，
         // 而边走边看正是这个功能最想要的场景，见 ReaderKeyHandler
         ClientTicks.onEndTick(com.november.mcphone.feature.reader.client.ReaderKeyHandler::tick);
+
+        // 家园同步的调度器（延迟动作/捕获窗口收口）。不挂在页面 tick 上：
+        // 附加页的 tick 送达不可靠，这里用平台的客户端 tick 链兜底
+        ClientTicks.onEndTick(com.november.mcphone.feature.homes.client.HomesSync::tick);
 
 
         // 每个 App 自己的快捷键。它不是 KeyMapping，只能听按下事件，理由见 AppHotkeys。
