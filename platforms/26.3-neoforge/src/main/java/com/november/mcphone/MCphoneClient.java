@@ -98,6 +98,10 @@ public class MCphoneClient {
         // 而边走边看正是这个功能最想要的场景，见 ReaderKeyHandler
         ClientTicks.onEndTick(com.november.mcphone.feature.reader.client.ReaderKeyHandler::tick);
 
+        // 家园同步的调度器（延迟动作/捕获窗口收口）。不挂在页面 tick 上：
+        // 附加页的 tick 送达不可靠，这里用平台的客户端 tick 链兜底
+        ClientTicks.onEndTick(com.november.mcphone.feature.homes.client.HomesSync::tick);
+
 
         // 每个 App 自己的快捷键。它不是 KeyMapping，只能听按下事件，理由见 AppHotkeys。
         // 鼠标键单独一条：那类事件与键盘的不是同一个类，而且它可以取消

@@ -83,8 +83,9 @@ public final class HomesSync {
      */
     public static void requestDelete(String name) {
         send("delhome " + name);
-        schedule(600, () -> send("confirm"));
-        schedule(2500, HomesSync::startSync);
+        // 确认由玩家点聊天栏里的 [Confirm]；这里排两次重同步，点完清单自动跟上
+        schedule(4000, HomesSync::startSync);
+        schedule(15000, HomesSync::startSync);
     }
 
     /** 新建家：/sethome 有冷却，2 秒后重同步拿真实结果 */

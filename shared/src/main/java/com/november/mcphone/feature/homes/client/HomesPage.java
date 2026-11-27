@@ -103,7 +103,8 @@ public final class HomesPage implements IPhonePage {
     private void deleteHome(int idx) {
         List<String> homes = homes();
         if (idx < 0 || idx >= homes.size()) return;
-        HomesSync.requestDelete(homes.get(idx)); // /delhome + 自动 /confirm + 重同步
+        HomesSync.requestDelete(homes.get(idx)); // /delhome，确认由玩家点聊天栏 [Confirm]
+        showToast("mcphone.homes.confirm_hint"); // 操作指引，不是命令回显
     }
 
     private void teleportHome(int idx) {

@@ -584,6 +584,7 @@
   "mcphone.app.homes": "Homes",
   "mcphone.app.homes.desc": "NeoEssentials homes: view, teleport to and set your homes (requires NeoEssentials on the server).",
   "mcphone.homes.syncing": "Syncing homes from server...",
+  "mcphone.homes.confirm_hint": "Deletion needs confirm: click [Confirm] in chat",
   "mcphone.homes.empty": "No homes yet. Tap + in the corner\nand enter a name to run /sethome.",
   "mcphone.homes.add_hint": "Enter a home name. Confirming runs /sethome <name>",
   "mcphone.homes.confirm": "Set",

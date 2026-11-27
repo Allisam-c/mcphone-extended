@@ -584,6 +584,7 @@
   "mcphone.app.homes": "家园",
   "mcphone.app.homes.desc": "NeoEssentials 传家：查看、传送与设置自己的家（需服务器安装 NeoEssentials）。",
   "mcphone.homes.syncing": "正在从服务器同步家园…",
+  "mcphone.homes.confirm_hint": "删除需确认：请在聊天栏点击 [Confirm]",
   "mcphone.homes.empty": "还没有家。点右上角的 +\n输入名字，会为你执行 /sethome。",
   "mcphone.homes.add_hint": "输入家的名字，确认后执行 /sethome <名字>",
   "mcphone.homes.confirm": "设置",
