@@ -26,6 +26,13 @@ env:
 jobs:
   build:
     runs-on: [self-hosted]
+    # 挂载必须在 workflow 层声明（act_runner 的 config 只能放行白名单）
+    container:
+      image: "ghcr.nju.edu.cn/catthehacker/ubuntu:act-latest"
+      volumes:
+        - "/share/Docker/act-runner-files/jdk.tar.gz:/mnt/jdk.tar.gz"
+        - "/share/Docker/act-runner-files/jdk:/opt/jdk"
+        - "/share/Docker/act-runner-files/gradle-home:/root/.gradle"
     steps:
 
       - name: Checkout（从 Gitea 本机克隆）
