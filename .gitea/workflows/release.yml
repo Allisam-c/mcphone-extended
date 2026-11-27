@@ -18,7 +18,10 @@ on:
       - "v*"
 
 env:
-  GITEA_URL: "https://allisam.space:3100"
+  # 任务容器解析不了 allisam.space（公网自回流被丢包，诊断已证实），
+  # 直接走宿主机局域网 IP；证书签给域名，对 IP 校验必然失败，
+  # 因此 git / curl 均关闭证书校验 —— 纯内网流量，无安全风险
+  GITEA_URL: "https://192.168.1.13:3100"
 
 jobs:
   build:
@@ -38,6 +41,7 @@ jobs:
         shell: bash
         run: |
           git config --global --add safe.directory '*'
+          git config --global http.sslVerify false
           rm -rf workspace
           git clone --depth 1 "$GITEA_URL/$GITEA_REPOSITORY.git" \
             --branch "$GITHUB_REF_NAME" workspace
@@ -74,26 +78,26 @@ jobs:
           GITEA_TOKEN: ${{ secrets.GITEA_TOKEN }}
         run: |
           set -e
-          API="$GITEA_SERVER_URL/api/v1"
+          API="$GITEA_URL/api/v1"
           TAG="$GITHUB_REF_NAME"
           JAR="workspace/platforms/26.3-neoforge/build/libs/mcphone-*.jar"
           ASSET="mcphone-26.3-neoforge-${TAG}.jar"
 
-          REL_ID=$(curl -sf -X POST -H "Authorization: token $GITEA_TOKEN" \
+          REL_ID=$(curl -skf -X POST -H "Authorization: token $GITEA_TOKEN" \
             -H "Content-Type: application/json" \
             -d "{\"tag_name\":\"$TAG\",\"name\":\"MCphone $TAG\",\"body\":\"CI 自动构建（26.3-neoforge，Java 25）\"}" \
             "$API/repos/$GITEA_REPOSITORY/releases" \
             | python3 -c "import json,sys;print(json.load(sys.stdin).get('id',''))" || true)
           if [ -z "$REL_ID" ]; then
-            REL_ID=$(curl -sf -H "Authorization: token $GITEA_TOKEN" \
+            REL_ID=$(curl -skf -H "Authorization: token $GITEA_TOKEN" \
               "$API/repos/$GITEA_REPOSITORY/releases/tags/$TAG" \
               | python3 -c "import json,sys;print(json.load(sys.stdin).get('id',''))")
           fi
           if [ -z "$REL_ID" ]; then echo "拿不到 Release id，终止"; exit 1; fi
 
-          curl -sf -X DELETE -H "Authorization: token $GITEA_TOKEN" \
+          curl -skf -X DELETE -H "Authorization: token $GITEA_TOKEN" \
             "$API/repos/$GITEA_REPOSITORY/releases/$REL_ID/assets?name=$ASSET" || true
-          curl -sf -X POST -H "Authorization: token $GITEA_TOKEN" \
+          curl -skf -X POST -H "Authorization: token $GITEA_TOKEN" \
             -H "Content-Type: application/octet-stream" \
             --data-binary @$JAR \
             "$API/repos/$GITEA_REPOSITORY/releases/$REL_ID/assets?name=$ASSET"
