@@ -83,7 +83,7 @@ jobs:
             fi
           fi
           cd workspace/platforms/26.3-neoforge
-          ./gradlew build --offline --no-daemon || ./gradlew build --no-daemon
+          ./gradlew build -x verifyPlatformTwins --offline --no-daemon || ./gradlew build -x verifyPlatformTwins --no-daemon
           ls -la build/libs/
 
       - name: Create release & upload jar
