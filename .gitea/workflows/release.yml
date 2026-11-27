@@ -1,7 +1,8 @@
 name: Build & Release
 # 零 uses 版本：不依赖 github.com 的任何 action。JDK / Gradle / 全部依赖缓存
-# 走 NAS 宿主机的持久目录（经 config.yaml 的 container.volumes 挂载进任务容器），
-# 首跑配置好之后，后续构建零下载。
+# JDK 与 Gradle 缓存走 act-toolcache 命名卷（跨任务持久），由 compose 里的
+# toolcache-seed 服务从宿主机目录一次性拷入 —— 不依赖任务容器 bind mount
+# （act_runner 会把挂载写进 HostConfig 日志但实际不生效）。
 #
 # 宿主机目录约定（Portainer/文件站里建好）：
 #   /volume1/act-runner-files/jdk.tar.gz      JDK 25 Linux tar.gz（PC 下载后上传一次）
@@ -29,10 +30,6 @@ jobs:
     # 挂载必须在 workflow 层声明（act_runner 的 config 只能放行白名单）
     container:
       image: "ghcr.nju.edu.cn/catthehacker/ubuntu:act-latest"
-      volumes:
-        - "/share/Docker/act-runner-files/jdk.tar.gz:/mnt/jdk.tar.gz"
-        - "/share/Docker/act-runner-files/jdk:/opt/jdk"
-        - "/share/Docker/act-runner-files/gradle-home:/root/.gradle"
     steps:
 
       - name: Checkout（从 Gitea 本机克隆）
@@ -48,40 +45,34 @@ jobs:
             --branch "${GITHUB_REF_NAME:-main}" workspace
           cd workspace && ls -la
 
-      - name: Prepare JDK 25（挂载优先，缺失则清华源下载）
+      - name: Prepare JDK 25（toolcache 卷优先，兜底清华源）
         shell: bash
         run: |
-          echo "=== 挂载诊断 ==="
-          ls -la /mnt/ 2>&1
-          echo "--- /opt ---"; ls -la /opt/ 2>&1
-          echo "--- /opt/jdk ---"; ls -la /opt/jdk/ 2>&1 | head -5
-          echo "--- /root/.gradle ---"; ls -la /root/.gradle/ 2>&1 | head -8
-          echo "--- findmnt ---"; grep -E "mnt|opt|gradle" /proc/mounts 2>&1 | head -5
-          echo "=== 诊断结束 ==="
-          if [ -x /opt/jdk/bin/java ]; then
-            echo "JDK 已就绪（挂载卷）"
+          if [ -x /opt/hostedtoolcache/jdk25/bin/java ]; then
+            echo "JDK 已就绪（toolcache 卷）"
           elif [ -f /mnt/jdk.tar.gz ]; then
-            echo "解压挂载卷里的 JDK"
-            mkdir -p /opt/jdk
-            tar -xzf /mnt/jdk.tar.gz -C /opt/jdk --strip-components=1
+            echo "解压 /mnt 挂载的 JDK"
+            mkdir -p /opt/hostedtoolcache/jdk25
+            tar -xzf /mnt/jdk.tar.gz -C /opt/hostedtoolcache/jdk25 --strip-components=1
           else
-            echo "挂载卷里没有 JDK，从清华镜像下载"
+            echo "toolcache 与挂载都没有 JDK，从清华镜像下载"
             MIRROR="https://mirrors.tuna.tsinghua.edu.cn/Adoptium/25/jdk/x64/linux"
             FILE=$(curl -sfL "$MIRROR/latest.json" | python3 -c "import json,sys;d=json.load(sys.stdin);print(d['binaries'][0]['package']['link'].rsplit('/',1)[-1])")
-            echo "JDK 包: $FILE"
-            mkdir -p /opt/jdk
-            curl -sfL "$MIRROR/$FILE" | tar -xz -C /opt/jdk --strip-components=1
+            mkdir -p /opt/hostedtoolcache/jdk25
+            curl -sfL "$MIRROR/$FILE" | tar -xz -C /opt/hostedtoolcache/jdk25 --strip-components=1
           fi
-          echo "JAVA_HOME=/opt/jdk" >> $GITHUB_ENV
-          echo "/opt/jdk/bin" >> $GITHUB_PATH
+          echo "JAVA_HOME=/opt/hostedtoolcache/jdk25" >> $GITHUB_ENV
+          echo "/opt/hostedtoolcache/jdk25/bin" >> $GITHUB_PATH
           java -version
 
       - name: Build jar
         shell: bash
-        env:
-          # 依赖与 wrapper 缓存全部来自挂载的 gradle-home，离线构建
-          GRADLE_USER_HOME: /root/.gradle
         run: |
+          # 依赖与 wrapper 缓存来自 toolcache 卷（act-toolcache 播种服务拷入）
+          if [ -d /opt/hostedtoolcache/gradle-home/caches ]; then
+            export GRADLE_USER_HOME=/opt/hostedtoolcache/gradle-home
+            echo "使用 toolcache 里的 Gradle 缓存"
+          fi
           cd workspace/platforms/26.3-neoforge
           ./gradlew build --offline --no-daemon || ./gradlew build --no-daemon
           ls -la build/libs/
