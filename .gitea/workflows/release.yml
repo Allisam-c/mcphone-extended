@@ -35,7 +35,7 @@ jobs:
           echo "== 直连 allisam.space:3100 =="; curl -sI --max-time 8 "$GITEA_URL/" || echo "FAIL allisam.space"
           echo "== 直连 192.168.1.13:3100 =="; curl -skI --max-time 8 "https://192.168.1.13:3100/" || echo "FAIL lan-ip"
           echo "== 直连 172.17.0.1:3100 =="; curl -skI --max-time 8 "https://172.17.0.1:3100/" || echo "FAIL 172.17.0.1"
-          echo "== git clone 测试 =="; git ls-remote --heads "https://allisam.space:3100/$GITEA_REPOSITORY.git" | head -2 || echo "FAIL git"
+          echo "== git clone 测试 =="; git ls-remote --heads "https://allisam.space:3100/AllisamWorkshop/mcphone-extended.git" | head -2 || echo "FAIL git"
 
       - name: Checkout（从 Gitea 本机克隆）
         shell: bash
@@ -46,8 +46,8 @@ jobs:
           git config --global http.sslVerify false
           rm -rf workspace
           # 仓库私有，匿名 clone 被 Gitea 以 Not Found 拒绝（诊断已证实）
-          git clone --depth 1 "https://allisam:${GITEA_TOKEN}@192.168.1.13:3100/$GITEA_REPOSITORY.git" \
-            --branch "$GITHUB_REF_NAME" workspace
+          git clone --depth 1 "https://allisam:${GITEA_TOKEN}@192.168.1.13:3100/AllisamWorkshop/mcphone-extended.git" \
+            --branch "${GITHUB_REF_NAME:-main}" workspace
           cd workspace && ls -la
 
       - name: Prepare JDK 25（已解压则直接用，零下载）
@@ -82,26 +82,26 @@ jobs:
         run: |
           set -e
           API="$GITEA_URL/api/v1"
-          TAG="$GITHUB_REF_NAME"
+          TAG="${GITHUB_REF_NAME:-manual}"
           JAR="workspace/platforms/26.3-neoforge/build/libs/mcphone-*.jar"
           ASSET="mcphone-26.3-neoforge-${TAG}.jar"
 
           REL_ID=$(curl -skf -X POST -H "Authorization: token $GITEA_TOKEN" \
             -H "Content-Type: application/json" \
             -d "{\"tag_name\":\"$TAG\",\"name\":\"MCphone $TAG\",\"body\":\"CI 自动构建（26.3-neoforge，Java 25）\"}" \
-            "$API/repos/$GITEA_REPOSITORY/releases" \
+            "$API/repos/AllisamWorkshop/mcphone-extended/releases" \
             | python3 -c "import json,sys;print(json.load(sys.stdin).get('id',''))" || true)
           if [ -z "$REL_ID" ]; then
             REL_ID=$(curl -skf -H "Authorization: token $GITEA_TOKEN" \
-              "$API/repos/$GITEA_REPOSITORY/releases/tags/$TAG" \
+              "$API/repos/AllisamWorkshop/mcphone-extended/releases/tags/$TAG" \
               | python3 -c "import json,sys;print(json.load(sys.stdin).get('id',''))")
           fi
           if [ -z "$REL_ID" ]; then echo "拿不到 Release id，终止"; exit 1; fi
 
           curl -skf -X DELETE -H "Authorization: token $GITEA_TOKEN" \
-            "$API/repos/$GITEA_REPOSITORY/releases/$REL_ID/assets?name=$ASSET" || true
+            "$API/repos/AllisamWorkshop/mcphone-extended/releases/$REL_ID/assets?name=$ASSET" || true
           curl -skf -X POST -H "Authorization: token $GITEA_TOKEN" \
             -H "Content-Type: application/octet-stream" \
             --data-binary @$JAR \
-            "$API/repos/$GITEA_REPOSITORY/releases/$REL_ID/assets?name=$ASSET"
+            "$API/repos/AllisamWorkshop/mcphone-extended/releases/$REL_ID/assets?name=$ASSET"
           echo "已上传 $ASSET 到 Release #$REL_ID"
