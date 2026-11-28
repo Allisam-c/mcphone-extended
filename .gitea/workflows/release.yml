@@ -95,6 +95,8 @@ jobs:
           API="$GITEA_URL/api/v1"
           TAG="${GITHUB_REF_NAME:-manual}"
           JAR="workspace/platforms/26.3-neoforge/build/libs/mcphone-*.jar"
+          JAR_FILE=$(ls $JAR | head -1)   # 展开通配符，curl 的 @ 读不了带 * 的字面路径
+          [ -f "$JAR_FILE" ] || { echo "没找到 jar: $JAR"; exit 1; }
           ASSET="mcphone-26.3-neoforge-${TAG}.jar"
 
           REL_ID=$(curl -skf -X POST -H "Authorization: token $GITEA_TOKEN" \
@@ -113,6 +115,6 @@ jobs:
             "$API/repos/AllisamWorkshop/mcphone-extended/releases/$REL_ID/assets?name=$ASSET" || true
           curl -skf -X POST -H "Authorization: token $GITEA_TOKEN" \
             -H "Content-Type: application/octet-stream" \
-            --data-binary @$JAR \
+            --data-binary "@$JAR_FILE" \
             "$API/repos/AllisamWorkshop/mcphone-extended/releases/$REL_ID/assets?name=$ASSET"
           echo "已上传 $ASSET 到 Release #$REL_ID"
