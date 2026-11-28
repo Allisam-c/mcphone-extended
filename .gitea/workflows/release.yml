@@ -69,6 +69,10 @@ jobs:
       - name: Build jar
         shell: bash
         run: |
+          # 版本号 = 标签名去掉 v（1.12.1+1.0.0 这种"原作者版本+fork 版本"两段式），
+          # 保证 jar 内显示、Release 名、标签三者永远一致
+          sed -i "s/^mod_version=.*/mod_version=${GITHUB_REF_NAME#v}/" gradle.properties
+          echo "构建版本: $(grep '^mod_version=' gradle.properties)"
           # 依赖与 wrapper 缓存来自 toolcache 卷（act-toolcache 播种服务拷入）
           if [ -d /opt/hostedtoolcache/gradle-home/caches ]; then
             export GRADLE_USER_HOME=/opt/hostedtoolcache/gradle-home
@@ -95,9 +99,9 @@ jobs:
           API="$GITEA_URL/api/v1"
           TAG="${GITHUB_REF_NAME:-manual}"
           JAR="workspace/platforms/26.3-neoforge/build/libs/mcphone-*.jar"
-          JAR_FILE=$(ls $JAR | head -1)   # 展开通配符，curl 的 @ 读不了带 * 的字面路径
+          JAR_FILE=$(ls $JAR | grep -v sources | head -1)   # 展开通配符并排除 sources jar
           [ -f "$JAR_FILE" ] || { echo "没找到 jar: $JAR"; exit 1; }
-          ASSET="mcphone-26.3-neoforge-${TAG}.jar"
+          ASSET=$(echo "mcphone-26.3-neoforge-${TAG}.jar" | tr '+' '_')   # + 在 URL query 里会变空格
 
           REL_ID=$(curl -skf -X POST -H "Authorization: token $GITEA_TOKEN" \
             -H "Content-Type: application/json" \
