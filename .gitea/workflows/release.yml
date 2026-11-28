@@ -71,8 +71,8 @@ jobs:
         run: |
           # 版本号 = 标签名去掉 v（1.12.1+1.0.0 这种"原作者版本+fork 版本"两段式），
           # 保证 jar 内显示、Release 名、标签三者永远一致
-          sed -i "s/^mod_version=.*/mod_version=${GITHUB_REF_NAME#v}/" gradle.properties
-          echo "构建版本: $(grep '^mod_version=' gradle.properties)"
+          sed -i "s/^mod_version=.*/mod_version=${GITHUB_REF_NAME#v}/" workspace/gradle.properties
+          echo "构建版本: $(grep '^mod_version=' workspace/gradle.properties)"
           # 依赖与 wrapper 缓存来自 toolcache 卷（act-toolcache 播种服务拷入）
           if [ -d /opt/hostedtoolcache/gradle-home/caches ]; then
             export GRADLE_USER_HOME=/opt/hostedtoolcache/gradle-home
